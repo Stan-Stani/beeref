@@ -372,6 +372,37 @@ class ChangeContrast(QtGui.QUndoCommand):
             item.contrast = contrast
 
 
+class ChangeLineArt(QtGui.QUndoCommand):
+    """Change the line art overlay on images."""
+
+    def __init__(self, items, lineart, threshold, color,
+                 ignore_first_redo=False):
+        super().__init__('Change Line Art')
+        self.ignore_first_redo = ignore_first_redo
+        self.items = list(filter(lambda item: item.is_image, items))
+        self.lineart = lineart
+        self.threshold = threshold
+        self.color = color
+        self.old_settings = [
+            (item.lineart, item.lineart_threshold, item.lineart_color)
+            for item in self.items]
+
+    def redo(self):
+        if self.ignore_first_redo:
+            self.ignore_first_redo = False
+            return
+
+        for item in self.items:
+            item.set_lineart(enabled=self.lineart, threshold=self.threshold,
+                             color=self.color)
+
+    def undo(self):
+        for item, (lineart, threshold, color) in zip(
+                self.items, self.old_settings):
+            item.set_lineart(enabled=lineart, threshold=threshold,
+                             color=color)
+
+
 class ToggleGrayscale(QtGui.QUndoCommand):
     """Toggle grayscale mode on images."""
 

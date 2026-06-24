@@ -258,6 +258,9 @@ def test_sqliteio_write_inserts_new_pixmap_item_png(tmpfile, view):
         'opacity': 0.66,
         'grayscale': True,
         'contrast': 1,
+        'lineart': False,
+        'lineart_threshold': 128,
+        'lineart_color': [255, 0, 255],
     }
     assert result[7] == 'pixmap'
     assert result[8] == b'abc'
@@ -376,6 +379,9 @@ def test_sqliteio_write_updates_existing_pixmap_item(tmpfile, view):
         'opacity': 0.75,
         'grayscale': True,
         'contrast': 1,
+        'lineart': False,
+        'lineart_threshold': 128,
+        'lineart_color': [255, 0, 255],
     }
     assert result[7] == b'abc'
 
@@ -423,6 +429,9 @@ def test_sqliteio_write_keeps_pixmap_item_of_error_item(tmpfile, view):
         'opacity': 0.2,
         'grayscale': False,
         'contrast': 1,
+        'lineart': False,
+        'lineart_threshold': 128,
+        'lineart_color': [255, 0, 255],
     }
     assert result[7] == b'abc'
 

@@ -110,6 +110,7 @@ menu_structure = [
         'items': [
             'change_opacity',
             'change_contrast',
+            'line_art',
             'grayscale',
             MENU_SEPARATOR,
             'show_color_gamut',

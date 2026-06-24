@@ -1064,6 +1064,25 @@ def test_on_action_change_contrast(dialog_mock, view):
     dialog_mock.assert_called_once_with(view, [pixmapitem1], view.undo_stack)
 
 
+@patch('beeref.widgets.LineArtDialog.__init__',
+       return_value=None)
+def test_on_action_line_art(dialog_mock, view):
+    pixmapitem1 = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(pixmapitem1)
+    pixmapitem1.setSelected(True)
+
+    pixmapitem2 = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(pixmapitem2)
+    pixmapitem2.setSelected(False)
+
+    textitem = BeeTextItem('foo')
+    view.scene.addItem(textitem)
+    textitem.setSelected(True)
+
+    view.on_action_line_art()
+    dialog_mock.assert_called_once_with(view, [pixmapitem1], view.undo_stack)
+
+
 def test_on_action_grayscale(view):
     pixmapitem1 = BeePixmapItem(QtGui.QImage())
     view.scene.addItem(pixmapitem1)

@@ -10,6 +10,7 @@ from beeref.widgets import (
     ChangeOpacityDialog,
     DebugLogDialog,
     ExportImagesFileExistsDialog,
+    LineArtDialog,
     SampleColorWidget,
     SceneToPixmapExporterDialog,
 )
@@ -145,6 +146,59 @@ def test_change_contrast_dialog_reject(view, item):
     dlg.input.setValue(200)
     dlg.reject()
     assert item.contrast == 1.5
+    assert len(stack) == 0
+
+
+def test_line_art_dialog_applies_default_immediately(view, item):
+    stack = QtGui.QUndoStack()
+    dlg = LineArtDialog(view, [item], stack)
+    # One click: the overlay is enabled with defaults as soon as it opens.
+    assert item.lineart is True
+    assert dlg.input.value() == item.LINEART_DEFAULT_THRESHOLD
+
+
+def test_line_art_dialog_threshold_live_update(view, item):
+    stack = QtGui.QUndoStack()
+    dlg = LineArtDialog(view, [item], stack)
+    dlg.input.setValue(80)
+    assert dlg.label.text() == 'Threshold: 80'
+    # The expensive preview recompute is debounced; flush it.
+    dlg.apply_preview()
+    assert item.lineart_threshold == 80
+
+
+@patch('PyQt6.QtWidgets.QColorDialog.getColor',
+       return_value=QtGui.QColor(0, 255, 0))
+def test_line_art_dialog_choose_color(get_color_mock, view, item):
+    stack = QtGui.QUndoStack()
+    dlg = LineArtDialog(view, [item], stack)
+    dlg.on_choose_color()
+    assert item.lineart_color == QtGui.QColor(0, 255, 0)
+
+
+def test_line_art_dialog_accept(view, item):
+    stack = QtGui.QUndoStack()
+    dlg = LineArtDialog(view, [item], stack)
+    dlg.input.setValue(80)
+    dlg.accept()
+    assert item.lineart is True
+    assert item.lineart_threshold == 80
+    assert len(stack) == 1
+
+
+def test_line_art_dialog_reject(view, item):
+    stack = QtGui.QUndoStack()
+    dlg = LineArtDialog(view, [item], stack)
+    dlg.input.setValue(80)
+    dlg.reject()
+    assert item.lineart is False
+    assert len(stack) == 0
+
+
+def test_line_art_dialog_accept_when_no_items(view):
+    stack = QtGui.QUndoStack()
+    dlg = LineArtDialog(view, [], stack)
+    dlg.accept()
     assert len(stack) == 0
 
 

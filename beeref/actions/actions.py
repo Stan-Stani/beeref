@@ -279,6 +279,12 @@ actions = ActionList([
         group='active_when_selection',
     ),
     Action(
+        id='line_art',
+        text='Line Art Overlay...',
+        callback='on_action_line_art',
+        group='active_when_selection',
+    ),
+    Action(
         id='grayscale',
         text='&Grayscale',
         shortcuts=['G'],

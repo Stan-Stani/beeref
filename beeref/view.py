@@ -344,6 +344,12 @@ class BeeGraphicsView(MainControlsMixin,
             self.scene.selectedItems(user_only=True)))
         widgets.ChangeContrastDialog(self, images, self.undo_stack)
 
+    def on_action_line_art(self):
+        images = list(filter(
+            lambda item: item.is_image,
+            self.scene.selectedItems(user_only=True)))
+        widgets.LineArtDialog(self, images, self.undo_stack)
+
     def on_action_grayscale(self, checked):
         images = list(filter(
             lambda item: item.is_image,

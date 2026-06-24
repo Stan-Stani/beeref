@@ -21,6 +21,7 @@ from PyQt6.QtCore import Qt
 
 from beeref import constants, commands
 from beeref.config import logfile_name
+from beeref.items import BeePixmapItem
 from beeref.widgets import (  # noqa: F401
     controls,
     settings,
@@ -308,6 +309,108 @@ class ChangeContrastDialog(QtWidgets.QDialog):
         if self.images:
             logger.debug(f'Setting contrast to {self.command.contrast}')
             # Make sure the final value is applied even if a debounced
+            # preview is still pending.
+            self._preview_timer.stop()
+            self.command.redo()
+            self.command.ignore_first_redo = True
+            self.undo_stack.push(self.command)
+        return super().accept()
+
+    def reject(self):
+        self._preview_timer.stop()
+        self.command.undo()
+        return super().reject()
+
+
+class LineArtDialog(QtWidgets.QDialog):
+    """Turn a sketch into tinted line art on a transparent background, for
+    overlaying on a reference image. Opens with sensible defaults applied
+    so it works with a single click, with optional threshold and colour
+    tweaking."""
+
+    MIN = 0
+    MAX = 255
+    # See ChangeContrastDialog: the recompute is per-pixel, so debounce it.
+    PREVIEW_DELAY = 50
+
+    def __init__(self, parent, images, undo_stack):
+        super().__init__(parent)
+        self.undo_stack = undo_stack
+        self.images = images
+
+        # Start from the first image's existing settings, or the defaults.
+        if images:
+            threshold = images[0].lineart_threshold
+            self.color = QtGui.QColor(images[0].lineart_color)
+        else:
+            threshold = BeePixmapItem.LINEART_DEFAULT_THRESHOLD
+            self.color = QtGui.QColor(*BeePixmapItem.LINEART_DEFAULT_COLOR)
+        self.command = commands.ChangeLineArt(
+            images, lineart=True, threshold=threshold, color=self.color)
+
+        self._preview_timer = QtCore.QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(self.PREVIEW_DELAY)
+        self._preview_timer.timeout.connect(self.apply_preview)
+
+        self.setWindowTitle('Line Art Overlay:')
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        self.label = QtWidgets.QLabel(f'Threshold: {threshold}')
+        layout.addWidget(self.label)
+
+        self.input = QtWidgets.QSlider(Qt.Orientation.Horizontal)
+        self.input.valueChanged.connect(self.on_value_changed)
+        self.input.setRange(self.MIN, self.MAX)
+        self.input.setValue(threshold)
+        layout.addWidget(self.input)
+
+        self.color_button = QtWidgets.QPushButton('Line Color...')
+        self.color_button.clicked.connect(self.on_choose_color)
+        layout.addWidget(self.color_button)
+        self.update_color_button()
+
+        # Bottom row of buttons
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok |
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        # Apply the default overlay immediately so a single click works.
+        self.command.redo()
+        self.show()
+
+    def update_color_button(self):
+        self.color_button.setStyleSheet(
+            f'background-color: {self.color.name()};')
+
+    def on_value_changed(self, value):
+        self.label.setText(f'Threshold: {value}')
+        self.command.threshold = value
+        # Debounce the costly recompute so dragging stays smooth.
+        self._preview_timer.start()
+
+    def on_choose_color(self):
+        color = QtWidgets.QColorDialog.getColor(
+            self.color, self, 'Line Color')
+        if color.isValid():
+            self.color = color
+            self.command.color = color
+            self.update_color_button()
+            self.apply_preview()
+
+    def apply_preview(self):
+        self.command.redo()
+
+    def accept(self):
+        if self.images:
+            logger.debug('Setting line art overlay')
+            # Make sure the final settings are applied even if a debounced
             # preview is still pending.
             self._preview_timer.stop()
             self.command.redo()

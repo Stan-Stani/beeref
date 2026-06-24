@@ -105,6 +105,42 @@ def test_display_pixmap_uses_contrast_pixmap(qapp, item):
     assert item.display_pixmap() is item._contrast_pixmap
 
 
+def test_apply_lineart_tints_dark_and_clears_light(qapp):
+    img = QtGui.QImage(2, 1, QtGui.QImage.Format.Format_ARGB32)
+    img.setPixelColor(0, 0, QtGui.QColor(20, 20, 20, 255))     # dark line
+    img.setPixelColor(1, 0, QtGui.QColor(240, 240, 240, 255))  # light area
+    result = BeePixmapItem.apply_lineart(img, 128, QtGui.QColor(255, 0, 255))
+    assert result.pixelColor(0, 0) == QtGui.QColor(255, 0, 255, 255)
+    assert result.pixelColor(1, 0).alpha() == 0
+
+
+def test_apply_lineart_keeps_source_transparency(qapp):
+    img = QtGui.QImage(1, 1, QtGui.QImage.Format.Format_ARGB32)
+    img.setPixelColor(0, 0, QtGui.QColor(0, 0, 0, 0))  # transparent
+    result = BeePixmapItem.apply_lineart(img, 128, QtGui.QColor(255, 0, 255))
+    assert result.pixelColor(0, 0).alpha() == 0
+
+
+def test_set_lineart_updates_settings(qapp, item):
+    item.set_lineart(enabled=True, threshold=100,
+                     color=QtGui.QColor(0, 255, 0))
+    assert item.lineart is True
+    assert item.lineart_threshold == 100
+    assert item.lineart_color == QtGui.QColor(0, 255, 0)
+
+
+def test_display_pixmap_uses_lineart_pixmap(qapp, item):
+    item.lineart = True
+    assert item.display_pixmap() is item._lineart_pixmap
+
+
+def test_lineart_pixmap_cleared_when_disabled(qapp, item):
+    item.lineart = True
+    assert item._lineart_pixmap is not None
+    item.lineart = False
+    assert item._lineart_pixmap is None
+
+
 def test_bounding_rect_unselected(qapp, imgfilename3x3):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
     item.crop = QtCore.QRectF(1, 1, 2, 2)
@@ -124,12 +160,17 @@ def test_get_extra_save_data(item):
     item.setOpacity(0.75)
     item.grayscale = True
     item.contrast = 1.5
+    item.set_lineart(enabled=True, threshold=100,
+                     color=QtGui.QColor(0, 255, 0))
     assert item.get_extra_save_data() == {
         'filename': 'foobar.png',
         'crop': [10, 20, 30, 40],
         'opacity': 0.75,
         'grayscale': True,
         'contrast': 1.5,
+        'lineart': True,
+        'lineart_threshold': 100,
+        'lineart_color': [0, 255, 0],
     }
 
 
@@ -310,6 +351,28 @@ def test_pixmap_to_bytes_contrast_not_applied_by_default(qapp, imgfilename3x3):
     assert item.pixmap_to_bytes() == unchanged.pixmap_to_bytes()
 
 
+def test_pixmap_to_bytes_apply_lineart(qapp):
+    img = QtGui.QImage(2, 1, QtGui.QImage.Format.Format_ARGB32)
+    img.setPixelColor(0, 0, QtGui.QColor(20, 20, 20, 255))
+    img.setPixelColor(1, 0, QtGui.QColor(240, 240, 240, 255))
+    item = BeePixmapItem(img)
+    item.set_lineart(enabled=True, threshold=128,
+                     color=QtGui.QColor(255, 0, 255))
+    data, imgformat = item.pixmap_to_bytes(apply_lineart=True)
+    pixmap = QtGui.QPixmap()
+    pixmap.loadFromData(data)
+    result = pixmap.toImage()
+    assert result.pixelColor(0, 0) == QtGui.QColor(255, 0, 255, 255)
+    assert result.pixelColor(1, 0).alpha() == 0
+
+
+def test_pixmap_to_bytes_lineart_not_applied_by_default(qapp, imgfilename3x3):
+    item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    item.lineart = True
+    unchanged = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    assert item.pixmap_to_bytes() == unchanged.pixmap_to_bytes()
+
+
 def test_pixmap_to_bytes_apply_grayscale_crop_when_not_set(
         qapp, imgfilename3x3):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
@@ -452,6 +515,25 @@ def test_create_from_data_with_contrast(item):
     assert item.contrast == 1.5
 
 
+def test_create_from_data_with_lineart(item):
+    new_item = BeePixmapItem.create_from_data(
+        item=item, data={'filename': 'foobar.png', 'lineart': True,
+                         'lineart_threshold': 100,
+                         'lineart_color': [0, 255, 0]})
+    assert new_item is item
+    assert item.lineart is True
+    assert item.lineart_threshold == 100
+    assert item.lineart_color == QtGui.QColor(0, 255, 0)
+
+
+def test_create_from_data_lineart_defaults(item):
+    new_item = BeePixmapItem.create_from_data(
+        item=item, data={'filename': 'foobar.png'})
+    assert new_item is item
+    assert item.lineart is False
+    assert item.lineart_threshold == BeePixmapItem.LINEART_DEFAULT_THRESHOLD
+
+
 def test_create_copy(qapp, imgfilename3x3):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3), 'foo.png')
     item.setPos(20, 30)
@@ -463,6 +545,8 @@ def test_create_copy(qapp, imgfilename3x3):
     item.setOpacity(0.7)
     item.grayscale = True
     item.contrast = 1.5
+    item.set_lineart(enabled=True, threshold=100,
+                     color=QtGui.QColor(0, 255, 0))
 
     copy = item.create_copy()
     assert copy.pixmap_to_bytes() == item.pixmap_to_bytes()
@@ -476,6 +560,9 @@ def test_create_copy(qapp, imgfilename3x3):
     assert copy.opacity() == 0.7
     assert copy.grayscale is True
     assert copy.contrast == 1.5
+    assert copy.lineart is True
+    assert copy.lineart_threshold == 100
+    assert copy.lineart_color == QtGui.QColor(0, 255, 0)
 
 
 def test_color_gamut_finds_colors(qapp):

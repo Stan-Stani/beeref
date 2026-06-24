@@ -547,6 +547,37 @@ def test_change_contrast_ignore_first_redo(view):
     assert item2.contrast == 2
 
 
+def test_change_lineart(view):
+    item1 = BeePixmapItem(QtGui.QImage())
+    item2 = BeePixmapItem(QtGui.QImage())
+    item2.set_lineart(enabled=True, threshold=50,
+                      color=QtGui.QColor(255, 0, 0))
+    command = commands.ChangeLineArt(
+        [item1, item2], lineart=True, threshold=200,
+        color=QtGui.QColor(0, 255, 0))
+    command.redo()
+    for item in (item1, item2):
+        assert item.lineart is True
+        assert item.lineart_threshold == 200
+        assert item.lineart_color == QtGui.QColor(0, 255, 0)
+    command.undo()
+    assert item1.lineart is False
+    assert item2.lineart is True
+    assert item2.lineart_threshold == 50
+    assert item2.lineart_color == QtGui.QColor(255, 0, 0)
+
+
+def test_change_lineart_ignore_first_redo(view):
+    item = BeePixmapItem(QtGui.QImage())
+    command = commands.ChangeLineArt(
+        [item], lineart=True, threshold=200, color=QtGui.QColor(0, 255, 0),
+        ignore_first_redo=True)
+    command.redo()
+    assert item.lineart is False
+    command.redo()
+    assert item.lineart is True
+
+
 def test_toggle_grayscale(view):
     item1 = BeePixmapItem(QtGui.QImage())
     item1.grayscale = True

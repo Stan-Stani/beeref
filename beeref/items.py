@@ -112,6 +112,13 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
     TYPE = 'pixmap'
     CROP_HANDLE_SIZE = 15
 
+    # Line art overlay defaults: turn a sketch into tinted line art on a
+    # transparent background so it can be overlaid on a reference image.
+    LINEART_DEFAULT_THRESHOLD = 128
+    LINEART_DEFAULT_COLOR = (255, 0, 255)
+    # Width of the luminance ramp used to anti-alias the line edges.
+    LINEART_SOFTNESS = 8
+
     def __init__(self, image, filename=None, **kwargs):
         super().__init__(QtGui.QPixmap.fromImage(image))
         self.save_id = None
@@ -122,6 +129,10 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         self.crop_mode = False
         self.init_selectable()
         self.settings = BeeSettings()
+        self._lineart = False
+        self._lineart_threshold = self.LINEART_DEFAULT_THRESHOLD
+        self._lineart_color = QtGui.QColor(*self.LINEART_DEFAULT_COLOR)
+        self._lineart_pixmap = None
         self._contrast = 1
         self._contrast_pixmap = None
         self.grayscale = False
@@ -136,6 +147,12 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item.setOpacity(data.get('opacity', 1))
         item.grayscale = data.get('grayscale', False)
         item.contrast = data.get('contrast', 1)
+        item.set_lineart(
+            enabled=data.get('lineart', False),
+            threshold=data.get(
+                'lineart_threshold', self.LINEART_DEFAULT_THRESHOLD),
+            color=QtGui.QColor(*data.get(
+                'lineart_color', self.LINEART_DEFAULT_COLOR)))
         return item
 
     def __str__(self):
@@ -243,11 +260,113 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         else:
             self._contrast_pixmap = QtGui.QPixmap.fromImage(
                 self.apply_contrast(base.toImage(), self._contrast))
+        # Line art sits on top of contrast, so it has to follow along.
+        self._update_lineart_pixmap()
+
+    @property
+    def lineart(self):
+        return self._lineart
+
+    @lineart.setter
+    def lineart(self, value):
+        self.set_lineart(enabled=value)
+
+    @property
+    def lineart_threshold(self):
+        return self._lineart_threshold
+
+    @lineart_threshold.setter
+    def lineart_threshold(self, value):
+        self.set_lineart(threshold=value)
+
+    @property
+    def lineart_color(self):
+        return self._lineart_color
+
+    @lineart_color.setter
+    def lineart_color(self, value):
+        self.set_lineart(color=value)
+
+    def set_lineart(self, enabled=None, threshold=None, color=None):
+        """Update one or more line art settings and recompute once."""
+        logger.debug(
+            f'Setting lineart for {self} to enabled={enabled} '
+            f'threshold={threshold} color={color}')
+        if enabled is not None:
+            self._lineart = enabled
+        if threshold is not None:
+            self._lineart_threshold = threshold
+        if color is not None:
+            self._lineart_color = QtGui.QColor(color)
+        self._update_lineart_pixmap()
+
+    @classmethod
+    def apply_lineart(cls, img, threshold, color):
+        """Return a tinted line art version of ``img`` on a transparent
+        background: pixels darker than ``threshold`` become ``color``,
+        lighter pixels become transparent. The source's own transparency
+        is preserved.
+        """
+        softness = cls.LINEART_SOFTNESS
+
+        # Map luminance to alpha: dark -> opaque, light -> transparent,
+        # with a short ramp around the threshold to smooth the edges.
+        def alpha_for(lum):
+            if lum <= threshold - softness:
+                return 255
+            if lum >= threshold:
+                return 0
+            return round(255 * (threshold - lum) / softness)
+        alpha_lut = bytes(alpha_for(i) for i in range(256))
+
+        # Luminance via Qt's grayscale conversion (done in C), then the
+        # lookup table turns it into an alpha mask.
+        gray = img.convertToFormat(QtGui.QImage.Format.Format_Grayscale8)
+        ptr = gray.bits()
+        ptr.setsize(gray.sizeInBytes())
+        alpha_bytes = bytes(ptr).translate(alpha_lut)
+        alpha_img = QtGui.QImage(
+            alpha_bytes, gray.width(), gray.height(),
+            gray.bytesPerLine(),
+            QtGui.QImage.Format.Format_Grayscale8).copy()
+
+        # Solid tint masked by the luminance-derived alpha.
+        result = QtGui.QImage(
+            img.size(), QtGui.QImage.Format.Format_RGBA8888)
+        result.fill(QtGui.QColor(color.red(), color.green(), color.blue()))
+        result.setAlphaChannel(alpha_img)
+
+        # Keep lines only where the source was opaque to begin with.
+        if img.hasAlphaChannel():
+            painter = QtGui.QPainter(result)
+            painter.setCompositionMode(
+                QtGui.QPainter.CompositionMode.CompositionMode_DestinationIn)
+            painter.drawImage(0, 0, img)
+            painter.end()
+        return result
+
+    def _update_lineart_pixmap(self):
+        """Recompute the cached line art pixmap on top of the (possibly
+        grayscale and contrast-adjusted) base pixmap."""
+        if self._contrast_pixmap is not None:
+            base = self._contrast_pixmap
+        elif self.grayscale:
+            base = self._grayscale_pixmap
+        else:
+            base = self.pixmap()
+        if not self._lineart or base is None or base.isNull():
+            self._lineart_pixmap = None
+        else:
+            self._lineart_pixmap = QtGui.QPixmap.fromImage(
+                self.apply_lineart(base.toImage(), self._lineart_threshold,
+                                   self._lineart_color))
         self.update()
 
     def display_pixmap(self):
-        """The pixmap shown on the canvas, with grayscale and contrast
-        applied."""
+        """The pixmap shown on the canvas, with grayscale, contrast and
+        line art applied."""
+        if self._lineart_pixmap is not None:
+            return self._lineart_pixmap
         if self._contrast_pixmap is not None:
             return self._contrast_pixmap
         if self.grayscale:
@@ -273,6 +392,11 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
                 'opacity': self.opacity(),
                 'grayscale': self.grayscale,
                 'contrast': self.contrast,
+                'lineart': self.lineart,
+                'lineart_threshold': self.lineart_threshold,
+                'lineart_color': [self.lineart_color.red(),
+                                  self.lineart_color.green(),
+                                  self.lineart_color.blue()],
                 'crop': [self.crop.topLeft().x(),
                          self.crop.topLeft().y(),
                          self.crop.width(),
@@ -305,7 +429,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         return formt
 
     def pixmap_to_bytes(self, apply_grayscale=False, apply_contrast=False,
-                        apply_crop=False):
+                        apply_lineart=False, apply_crop=False):
         """Convert the pixmap data to PNG bytestring."""
         barray = QtCore.QByteArray()
         buffer = QtCore.QBuffer(barray)
@@ -318,6 +442,11 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         if apply_contrast and self.contrast != 1:
             pm = QtGui.QPixmap.fromImage(
                 self.apply_contrast(pm.toImage(), self.contrast))
+
+        if apply_lineart and self.lineart:
+            pm = QtGui.QPixmap.fromImage(
+                self.apply_lineart(pm.toImage(), self.lineart_threshold,
+                                   self.lineart_color))
 
         if apply_crop:
             pm = pm.copy(self.crop.toRect())
@@ -347,6 +476,10 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item.setOpacity(self.opacity())
         item.grayscale = self.grayscale
         item.contrast = self.contrast
+        item.set_lineart(
+            enabled=self.lineart,
+            threshold=self.lineart_threshold,
+            color=self.lineart_color)
         if self.flip() == -1:
             item.do_flip()
         item.crop = self.crop
