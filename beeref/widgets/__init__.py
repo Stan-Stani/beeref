@@ -249,12 +249,23 @@ class ChangeContrastDialog(QtWidgets.QDialog):
 
     MIN = 0
     MAX = 400
+    # Debounce interval for the (expensive) live preview: applying
+    # contrast rematerialises every pixel through a lookup table, so
+    # unlike the opacity slider we can't afford to recompute on every
+    # intermediate value while dragging. Coalesce rapid changes and
+    # only recompute once the slider settles.
+    PREVIEW_DELAY = 50
 
     def __init__(self, parent, images, undo_stack):
         super().__init__(parent)
         self.undo_stack = undo_stack
         self.images = images
         self.command = commands.ChangeContrast(images, contrast=1)
+
+        self._preview_timer = QtCore.QTimer(self)
+        self._preview_timer.setSingleShot(True)
+        self._preview_timer.setInterval(self.PREVIEW_DELAY)
+        self._preview_timer.timeout.connect(self.apply_preview)
 
         value = round(images[0].contrast * 100) if images else 100
 
@@ -286,16 +297,26 @@ class ChangeContrastDialog(QtWidgets.QDialog):
     def on_value_changed(self, value):
         self.label.setText(f'Contrast: {value}%')
         self.command.contrast = value / 100
+        # Debounce the costly recompute so dragging stays smooth; the
+        # label updates immediately for live feedback.
+        self._preview_timer.start()
+
+    def apply_preview(self):
         self.command.redo()
 
     def accept(self):
         if self.images:
             logger.debug(f'Setting contrast to {self.command.contrast}')
+            # Make sure the final value is applied even if a debounced
+            # preview is still pending.
+            self._preview_timer.stop()
+            self.command.redo()
             self.command.ignore_first_redo = True
             self.undo_stack.push(self.command)
         return super().accept()
 
     def reject(self):
+        self._preview_timer.stop()
         self.command.undo()
         return super().reject()
 

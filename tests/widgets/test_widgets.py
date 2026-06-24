@@ -115,6 +115,8 @@ def test_change_contrast_dialog_live_update(view, item):
     dlg = ChangeContrastDialog(view, [item], stack)
     dlg.input.setValue(200)
     assert dlg.label.text() == 'Contrast: 200%'
+    # The expensive preview recompute is debounced; flush it.
+    dlg.apply_preview()
     assert item.contrast == 2
 
 
