@@ -516,6 +516,37 @@ def test_change_opacity_ignore_first_redo(view):
     assert item2.opacity() == 0.7
 
 
+def test_change_contrast(view):
+    item1 = BeePixmapItem(QtGui.QImage())
+    item1.contrast = 0.5
+    view.scene.addItem(item1)
+    item2 = BeePixmapItem(QtGui.QImage())
+    item2.contrast = 1
+    command = commands.ChangeContrast([item1, item2], 2)
+    command.redo()
+    assert item1.contrast == 2
+    assert item2.contrast == 2
+    command.undo()
+    assert item1.contrast == 0.5
+    assert item2.contrast == 1
+
+
+def test_change_contrast_ignore_first_redo(view):
+    item1 = BeePixmapItem(QtGui.QImage())
+    item1.contrast = 0.5
+    view.scene.addItem(item1)
+    item2 = BeePixmapItem(QtGui.QImage())
+    item2.contrast = 1
+    command = commands.ChangeContrast(
+        [item1, item2], 2, ignore_first_redo=True)
+    command.redo()
+    assert item1.contrast == 0.5
+    assert item2.contrast == 1
+    command.redo()
+    assert item1.contrast == 2
+    assert item2.contrast == 2
+
+
 def test_toggle_grayscale(view):
     item1 = BeePixmapItem(QtGui.QImage())
     item1.grayscale = True

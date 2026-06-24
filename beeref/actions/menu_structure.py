@@ -109,6 +109,7 @@ menu_structure = [
         'menu': '&Images',
         'items': [
             'change_opacity',
+            'change_contrast',
             'grayscale',
             MENU_SEPARATOR,
             'show_color_gamut',

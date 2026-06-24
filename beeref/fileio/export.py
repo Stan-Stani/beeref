@@ -215,6 +215,7 @@ class SceneToSVGExporter(SceneExporterBase):
                 height = item.height * item.scale()
                 pixmap, imgformat = item.pixmap_to_bytes(
                     apply_grayscale=True,
+                    apply_contrast=True,
                     apply_crop=True)
                 pixmap = base64.b64encode(pixmap).decode('ascii')
                 element = ET.Element(

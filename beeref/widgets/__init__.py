@@ -245,6 +245,61 @@ class ChangeOpacityDialog(QtWidgets.QDialog):
         return super().reject()
 
 
+class ChangeContrastDialog(QtWidgets.QDialog):
+
+    MIN = 0
+    MAX = 400
+
+    def __init__(self, parent, images, undo_stack):
+        super().__init__(parent)
+        self.undo_stack = undo_stack
+        self.images = images
+        self.command = commands.ChangeContrast(images, contrast=1)
+
+        value = round(images[0].contrast * 100) if images else 100
+
+        self.setWindowTitle('Change Contrast:')
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        self.label = QtWidgets.QLabel('Contrast:')
+        layout.addWidget(self.label)
+
+        self.input = QtWidgets.QSlider(Qt.Orientation.Horizontal)
+        self.input.valueChanged.connect(self.on_value_changed)
+        self.input.setRange(self.MIN, self.MAX)
+        self.input.setValue(value)
+        layout.addWidget(self.input)
+
+        # Bottom row of buttons
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok |
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self.show()
+
+    def on_value_changed(self, value):
+        self.label.setText(f'Contrast: {value}%')
+        self.command.contrast = value / 100
+        self.command.redo()
+
+    def accept(self):
+        if self.images:
+            logger.debug(f'Setting contrast to {self.command.contrast}')
+            self.command.ignore_first_redo = True
+            self.undo_stack.push(self.command)
+        return super().accept()
+
+    def reject(self):
+        self.command.undo()
+        return super().reject()
+
+
 class BeeNotification(QtWidgets.QWidget):
     def __init__(self, parent, text):
         super().__init__(parent)

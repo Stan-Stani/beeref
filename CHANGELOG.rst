@@ -4,6 +4,9 @@
 Added
 -----
 
+* Added the ability to adjust the contrast of images
+  (Images -> Change Contrast...). Useful, for example, for turning
+  light pencil sketches into clearer line art.
 * Added a setting to change the default memory limit for individual
   images. If a big image won't load, increase this limit. This
   setting can be overridden by Qt's default environment variable

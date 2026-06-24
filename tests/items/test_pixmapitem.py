@@ -72,6 +72,39 @@ def test_set_grayscale_false(qapp, item):
     assert item._grayscale_pixmap is None
 
 
+def test_set_contrast(qapp, item):
+    item.contrast = 2
+    assert item.contrast == 2
+    assert item._contrast_pixmap is not None
+
+
+def test_set_contrast_default_clears_pixmap(qapp, item):
+    item.contrast = 2
+    assert item._contrast_pixmap is not None
+    item.contrast = 1
+    assert item._contrast_pixmap is None
+
+
+def test_apply_contrast_identity(qapp):
+    img = QtGui.QImage(1, 1, QtGui.QImage.Format.Format_ARGB32)
+    img.setPixelColor(0, 0, QtGui.QColor(200, 100, 50, 128))
+    result = BeePixmapItem.apply_contrast(img, 1)
+    assert result.pixelColor(0, 0) == QtGui.QColor(200, 100, 50, 128)
+
+
+def test_apply_contrast_increases_contrast_and_keeps_alpha(qapp):
+    img = QtGui.QImage(1, 1, QtGui.QImage.Format.Format_ARGB32)
+    img.setPixelColor(0, 0, QtGui.QColor(200, 100, 50, 128))
+    result = BeePixmapItem.apply_contrast(img, 2)
+    # (channel - 128) * 2 + 128, clamped to 0..255; alpha untouched
+    assert result.pixelColor(0, 0) == QtGui.QColor(255, 72, 0, 128)
+
+
+def test_display_pixmap_uses_contrast_pixmap(qapp, item):
+    item.contrast = 2
+    assert item.display_pixmap() is item._contrast_pixmap
+
+
 def test_bounding_rect_unselected(qapp, imgfilename3x3):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
     item.crop = QtCore.QRectF(1, 1, 2, 2)
@@ -90,11 +123,13 @@ def test_get_extra_save_data(item):
     item.crop = QtCore.QRectF(10, 20, 30, 40)
     item.setOpacity(0.75)
     item.grayscale = True
+    item.contrast = 1.5
     assert item.get_extra_save_data() == {
         'filename': 'foobar.png',
         'crop': [10, 20, 30, 40],
         'opacity': 0.75,
-        'grayscale': True
+        'grayscale': True,
+        'contrast': 1.5,
     }
 
 
@@ -256,6 +291,25 @@ def test_pixmap_to_bytes_apply_crop(qapp, imgfilename3x3):
     assert img.size() == QtCore.QSize(2, 2)
 
 
+def test_pixmap_to_bytes_apply_contrast(qapp, imgfilename3x3):
+    item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    # A contrast factor of 0 maps every channel to the mid grey value
+    item.contrast = 0
+    data, imgformat = item.pixmap_to_bytes(apply_contrast=True)
+    pixmap = QtGui.QPixmap()
+    pixmap.loadFromData(data)
+    img = pixmap.toImage()
+    color = img.pixelColor(0, 0)
+    assert (color.red(), color.green(), color.blue()) == (128, 128, 128)
+
+
+def test_pixmap_to_bytes_contrast_not_applied_by_default(qapp, imgfilename3x3):
+    item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    item.contrast = 0
+    unchanged = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    assert item.pixmap_to_bytes() == unchanged.pixmap_to_bytes()
+
+
 def test_pixmap_to_bytes_apply_grayscale_crop_when_not_set(
         qapp, imgfilename3x3):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
@@ -390,6 +444,14 @@ def test_create_from_data_with_grayscale(item):
     assert item.grayscale is True
 
 
+def test_create_from_data_with_contrast(item):
+    new_item = BeePixmapItem.create_from_data(
+        item=item, data={'filename': 'foobar.png', 'contrast': 1.5})
+    assert new_item is item
+    assert item.filename == 'foobar.png'
+    assert item.contrast == 1.5
+
+
 def test_create_copy(qapp, imgfilename3x3):
     item = BeePixmapItem(QtGui.QImage(imgfilename3x3), 'foo.png')
     item.setPos(20, 30)
@@ -400,6 +462,7 @@ def test_create_copy(qapp, imgfilename3x3):
     item.crop = QtCore.QRectF(10, 20, 30, 40)
     item.setOpacity(0.7)
     item.grayscale = True
+    item.contrast = 1.5
 
     copy = item.create_copy()
     assert copy.pixmap_to_bytes() == item.pixmap_to_bytes()
@@ -412,6 +475,7 @@ def test_create_copy(qapp, imgfilename3x3):
     assert copy.crop == QtCore.QRectF(10, 20, 30, 40)
     assert copy.opacity() == 0.7
     assert copy.grayscale is True
+    assert copy.contrast == 1.5
 
 
 def test_color_gamut_finds_colors(qapp):
@@ -913,6 +977,17 @@ def test_sample_color_in_greyscale_mode(qapp, view):
     gray = item.sample_color_at(QtCore.QPointF(2, 2))
     print(gray.red(), gray.green(), gray.blue(), gray.alpha())
     assert gray == QtGui.QColor(130, 130, 130)
+
+
+def test_sample_color_with_contrast(qapp, view):
+    color = QtGui.QColor(200, 100, 50)
+    img = QtGui.QImage(10, 10, QtGui.QImage.Format.Format_ARGB32)
+    img.fill(color)
+    item = BeePixmapItem(img, 'foo.png')
+    item.contrast = 2
+    view.scene.addItem(item)
+    sampled = item.sample_color_at(QtCore.QPointF(2, 2))
+    assert (sampled.red(), sampled.green(), sampled.blue()) == (255, 72, 0)
 
 
 def test_sample_color_at_returns_none_when_transparent(qapp, view):

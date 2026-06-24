@@ -273,6 +273,12 @@ actions = ActionList([
         group='active_when_selection',
     ),
     Action(
+        id='change_contrast',
+        text='Change Co&ntrast...',
+        callback='on_action_change_contrast',
+        group='active_when_selection',
+    ),
+    Action(
         id='grayscale',
         text='&Grayscale',
         shortcuts=['G'],

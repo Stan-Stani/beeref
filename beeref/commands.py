@@ -349,6 +349,29 @@ class ChangeOpacity(QtGui.QUndoCommand):
             item.setOpacity(opacity)
 
 
+class ChangeContrast(QtGui.QUndoCommand):
+    """Change contrast on images."""
+
+    def __init__(self, items, contrast, ignore_first_redo=False):
+        super().__init__('Change Contrast')
+        self.ignore_first_redo = ignore_first_redo
+        self.items = list(filter(lambda item: item.is_image, items))
+        self.contrast = contrast
+        self.old_contrasts = [item.contrast for item in self.items]
+
+    def redo(self):
+        if self.ignore_first_redo:
+            self.ignore_first_redo = False
+            return
+
+        for item in self.items:
+            item.contrast = self.contrast
+
+    def undo(self):
+        for item, contrast in zip(self.items, self.old_contrasts):
+            item.contrast = contrast
+
+
 class ToggleGrayscale(QtGui.QUndoCommand):
     """Toggle grayscale mode on images."""
 

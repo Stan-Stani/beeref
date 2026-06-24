@@ -122,6 +122,8 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         self.crop_mode = False
         self.init_selectable()
         self.settings = BeeSettings()
+        self._contrast = 1
+        self._contrast_pixmap = None
         self.grayscale = False
 
     @classmethod
@@ -133,6 +135,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             item.crop = QtCore.QRectF(*data['crop'])
         item.setOpacity(data.get('opacity', 1))
         item.grayscale = data.get('grayscale', False)
+        item.contrast = data.get('contrast', 1)
         return item
 
     def __str__(self):
@@ -195,15 +198,65 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         else:
             self._grayscale_pixmap = None
 
+        self._update_contrast_pixmap()
+
+    @property
+    def contrast(self):
+        return self._contrast
+
+    @contrast.setter
+    def contrast(self, value):
+        logger.debug(f'Setting contrast for {self} to {value}')
+        self._contrast = value
+        self._update_contrast_pixmap()
+
+    @staticmethod
+    def apply_contrast(img, factor):
+        """Return a copy of ``img`` with the given contrast ``factor``
+        applied (1 = unchanged, 0 = flat gray, >1 = more contrast).
+
+        The alpha channel is left untouched.
+        """
+        # Linear contrast around the mid grey point, as a 256-entry
+        # lookup table: new = (old - 128) * factor + 128
+        lut = bytes(max(0, min(255, round((i - 128) * factor + 128)))
+                    for i in range(256))
+        img = img.convertToFormat(QtGui.QImage.Format.Format_RGBA8888)
+        ptr = img.bits()
+        ptr.setsize(img.sizeInBytes())
+        src = bytes(ptr)
+        out = bytearray(src.translate(lut))
+        # Restore the original alpha values (every 4th byte)
+        out[3::4] = src[3::4]
+        result = QtGui.QImage(
+            bytes(out), img.width(), img.height(),
+            img.bytesPerLine(), QtGui.QImage.Format.Format_RGBA8888)
+        # Detach from the local buffer before it goes out of scope
+        return result.copy()
+
+    def _update_contrast_pixmap(self):
+        """Recompute the cached pixmap shown on the canvas, applying
+        contrast on top of the (possibly grayscale) base pixmap."""
+        base = self._grayscale_pixmap if self.grayscale else self.pixmap()
+        if self._contrast == 1 or base is None or base.isNull():
+            self._contrast_pixmap = None
+        else:
+            self._contrast_pixmap = QtGui.QPixmap.fromImage(
+                self.apply_contrast(base.toImage(), self._contrast))
         self.update()
+
+    def display_pixmap(self):
+        """The pixmap shown on the canvas, with grayscale and contrast
+        applied."""
+        if self._contrast_pixmap is not None:
+            return self._contrast_pixmap
+        if self.grayscale:
+            return self._grayscale_pixmap
+        return self.pixmap()
 
     def sample_color_at(self, pos):
         ipos = self.mapFromScene(pos)
-        if self.grayscale:
-            pm = self._grayscale_pixmap
-        else:
-            pm = self.pixmap()
-        img = pm.toImage()
+        img = self.display_pixmap().toImage()
 
         color = img.pixelColor(int(ipos.x()), int(ipos.y()))
         if color.alpha():
@@ -219,6 +272,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         return {'filename': self.filename,
                 'opacity': self.opacity(),
                 'grayscale': self.grayscale,
+                'contrast': self.contrast,
                 'crop': [self.crop.topLeft().x(),
                          self.crop.topLeft().y(),
                          self.crop.width(),
@@ -250,7 +304,8 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         logger.debug(f'Found format {formt} for {self}')
         return formt
 
-    def pixmap_to_bytes(self, apply_grayscale=False, apply_crop=False):
+    def pixmap_to_bytes(self, apply_grayscale=False, apply_contrast=False,
+                        apply_crop=False):
         """Convert the pixmap data to PNG bytestring."""
         barray = QtCore.QByteArray()
         buffer = QtCore.QBuffer(barray)
@@ -259,6 +314,10 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             pm = self._grayscale_pixmap
         else:
             pm = self.pixmap()
+
+        if apply_contrast and self.contrast != 1:
+            pm = QtGui.QPixmap.fromImage(
+                self.apply_contrast(pm.toImage(), self.contrast))
 
         if apply_crop:
             pm = pm.copy(self.crop.toRect())
@@ -287,6 +346,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item.setRotation(self.rotation())
         item.setOpacity(self.opacity())
         item.grayscale = self.grayscale
+        item.contrast = self.contrast
         if self.flip() == -1:
             item.do_flip()
         item.crop = self.crop
@@ -471,8 +531,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
                 self.draw_crop_rect(painter, handle())
             self.draw_crop_rect(painter, self.crop_temp)
         else:
-            pm = self._grayscale_pixmap if self.grayscale else self.pixmap()
-            painter.drawPixmap(self.crop, pm, self.crop)
+            painter.drawPixmap(self.crop, self.display_pixmap(), self.crop)
             self.paint_selectable(painter, option, widget)
 
     def enter_crop_mode(self):

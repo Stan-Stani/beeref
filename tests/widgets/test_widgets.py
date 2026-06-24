@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt
 from beeref.config import logfile_name
 from beeref.widgets import (
     BeeNotification,
+    ChangeContrastDialog,
     ChangeOpacityDialog,
     DebugLogDialog,
     ExportImagesFileExistsDialog,
@@ -98,6 +99,50 @@ def test_change_opacity_dialog_reject(view, item):
     dlg.input.setValue(30)
     dlg.reject()
     assert item.opacity() == 0.6
+    assert len(stack) == 0
+
+
+def test_change_contrast_dialog_init(view, item):
+    item.contrast = 1.5
+    stack = QtGui.QUndoStack()
+    dlg = ChangeContrastDialog(view, [item], stack)
+    assert dlg.input.value() == 150
+    assert dlg.label.text() == 'Contrast: 150%'
+
+
+def test_change_contrast_dialog_live_update(view, item):
+    stack = QtGui.QUndoStack()
+    dlg = ChangeContrastDialog(view, [item], stack)
+    dlg.input.setValue(200)
+    assert dlg.label.text() == 'Contrast: 200%'
+    assert item.contrast == 2
+
+
+def test_change_contrast_dialog_accept(view, item):
+    stack = QtGui.QUndoStack()
+    dlg = ChangeContrastDialog(view, [item], stack)
+    dlg.input.setValue(200)
+    dlg.accept()
+    assert item.contrast == 2
+    assert len(stack) == 1
+
+
+def test_change_contrast_dialog_accept_when_no_items(view):
+    stack = QtGui.QUndoStack()
+    dlg = ChangeContrastDialog(view, [], stack)
+    assert dlg.input.value() == 100
+    dlg.input.setValue(200)
+    dlg.accept()
+    assert len(stack) == 0
+
+
+def test_change_contrast_dialog_reject(view, item):
+    item.contrast = 1.5
+    stack = QtGui.QUndoStack()
+    dlg = ChangeContrastDialog(view, [item], stack)
+    dlg.input.setValue(200)
+    dlg.reject()
+    assert item.contrast == 1.5
     assert len(stack) == 0
 
 
