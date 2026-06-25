@@ -338,9 +338,14 @@ class LineArtDialog(QtWidgets.QDialog):
         self.undo_stack = undo_stack
         self.images = images
 
-        # Start from the first image's existing settings, or the defaults.
-        if images:
+        # When re-editing an existing overlay, keep its settings. For a
+        # fresh overlay, auto-pick a threshold from the image so the
+        # default click already gives a good result.
+        if images and images[0].lineart:
             threshold = images[0].lineart_threshold
+            self.color = QtGui.QColor(images[0].lineart_color)
+        elif images:
+            threshold = images[0].lineart_auto_threshold()
             self.color = QtGui.QColor(images[0].lineart_color)
         else:
             threshold = BeePixmapItem.LINEART_DEFAULT_THRESHOLD
@@ -366,6 +371,10 @@ class LineArtDialog(QtWidgets.QDialog):
         self.input.setRange(self.MIN, self.MAX)
         self.input.setValue(threshold)
         layout.addWidget(self.input)
+
+        self.auto_button = QtWidgets.QPushButton('Auto Threshold')
+        self.auto_button.clicked.connect(self.on_auto_threshold)
+        layout.addWidget(self.auto_button)
 
         self.color_button = QtWidgets.QPushButton('Line Color...')
         self.color_button.clicked.connect(self.on_choose_color)
@@ -394,6 +403,13 @@ class LineArtDialog(QtWidgets.QDialog):
         self.command.threshold = value
         # Debounce the costly recompute so dragging stays smooth.
         self._preview_timer.start()
+
+    def on_auto_threshold(self):
+        if not self.images:
+            return
+        # Setting the slider triggers on_value_changed, which updates the
+        # command and previews the result.
+        self.input.setValue(self.images[0].lineart_auto_threshold())
 
     def on_choose_color(self):
         color = QtWidgets.QColorDialog.getColor(

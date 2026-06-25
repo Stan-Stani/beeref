@@ -309,14 +309,15 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         """
         softness = cls.LINEART_SOFTNESS
 
-        # Map luminance to alpha: dark -> opaque, light -> transparent,
-        # with a short ramp around the threshold to smooth the edges.
+        # Map luminance to alpha: pixels at or below the threshold are
+        # fully opaque lines, with a short ramp just above the threshold
+        # to smooth (anti-alias) the line edges.
         def alpha_for(lum):
-            if lum <= threshold - softness:
+            if lum <= threshold:
                 return 255
-            if lum >= threshold:
+            if lum >= threshold + softness:
                 return 0
-            return round(255 * (threshold - lum) / softness)
+            return round(255 * (threshold + softness - lum) / softness)
         alpha_lut = bytes(alpha_for(i) for i in range(256))
 
         # Luminance via Qt's grayscale conversion (done in C), then the
@@ -345,15 +346,78 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
             painter.end()
         return result
 
+    @classmethod
+    def auto_threshold(cls, img):
+        """Pick a luminance threshold separating dark lines from the
+        lighter background, using Otsu's method on the histogram."""
+        if img.isNull():
+            return cls.LINEART_DEFAULT_THRESHOLD
+        gray = img.convertToFormat(QtGui.QImage.Format.Format_Grayscale8)
+        # The threshold is a global statistic, so a downscaled image gives
+        # the same answer far more cheaply for large images.
+        limit = 256
+        if gray.width() > limit or gray.height() > limit:
+            gray = gray.scaled(
+                limit, limit, QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+        width, height = gray.width(), gray.height()
+        bytes_per_line = gray.bytesPerLine()
+        ptr = gray.bits()
+        ptr.setsize(gray.sizeInBytes())
+        data = bytes(ptr)
+
+        hist = [0] * 256
+        for y in range(height):
+            # Skip any row padding past the actual pixels.
+            for value in data[y * bytes_per_line:y * bytes_per_line + width]:
+                hist[value] += 1
+
+        total = width * height
+        if total == 0:
+            return cls.LINEART_DEFAULT_THRESHOLD
+
+        sum_all = sum(i * hist[i] for i in range(256))
+        sum_below = 0
+        weight_below = 0
+        max_variance = -1.0
+        threshold = cls.LINEART_DEFAULT_THRESHOLD
+        for level in range(256):
+            weight_below += hist[level]
+            if weight_below == 0:
+                continue
+            weight_above = total - weight_below
+            if weight_above == 0:
+                break
+            sum_below += level * hist[level]
+            mean_below = sum_below / weight_below
+            mean_above = (sum_all - sum_below) / weight_above
+            variance = (weight_below * weight_above
+                        * (mean_below - mean_above) ** 2)
+            if variance > max_variance:
+                max_variance = variance
+                threshold = level
+        return threshold
+
+    def lineart_auto_threshold(self):
+        """Auto threshold for this item's current (grayscale/contrast)
+        base pixmap."""
+        base = self._lineart_base()
+        if base is None or base.isNull():
+            return self.LINEART_DEFAULT_THRESHOLD
+        return self.auto_threshold(base.toImage())
+
+    def _lineart_base(self):
+        """The pixmap line art is computed from: the contrast/grayscale
+        result if present, otherwise the original pixmap."""
+        if self._contrast_pixmap is not None:
+            return self._contrast_pixmap
+        if self.grayscale:
+            return self._grayscale_pixmap
+        return self.pixmap()
+
     def _update_lineart_pixmap(self):
         """Recompute the cached line art pixmap on top of the (possibly
         grayscale and contrast-adjusted) base pixmap."""
-        if self._contrast_pixmap is not None:
-            base = self._contrast_pixmap
-        elif self.grayscale:
-            base = self._grayscale_pixmap
-        else:
-            base = self.pixmap()
+        base = self._lineart_base()
         if not self._lineart or base is None or base.isNull():
             self._lineart_pixmap = None
         else:

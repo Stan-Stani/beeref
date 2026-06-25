@@ -114,6 +114,41 @@ def test_apply_lineart_tints_dark_and_clears_light(qapp):
     assert result.pixelColor(1, 0).alpha() == 0
 
 
+def test_auto_threshold_separates_dark_and_light(qapp):
+    img = QtGui.QImage(100, 100, QtGui.QImage.Format.Format_RGB32)
+    for y in range(100):
+        for x in range(100):
+            shade = 30 if x < 50 else 220
+            img.setPixelColor(x, y, QtGui.QColor(shade, shade, shade))
+    threshold = BeePixmapItem.auto_threshold(img)
+    # The dark population (30) should end up at/below the threshold and
+    # the light population (220) above it.
+    assert 30 <= threshold < 220
+
+
+def test_auto_threshold_adapts_to_light_image(qapp):
+    # Faint lines (175) on near-white (250): a fixed mid-grey threshold
+    # would miss them, auto threshold should land between the two.
+    img = QtGui.QImage(100, 100, QtGui.QImage.Format.Format_RGB32)
+    img.fill(QtGui.QColor(250, 250, 250))
+    for x in range(20):
+        for y in range(100):
+            img.setPixelColor(x, y, QtGui.QColor(175, 175, 175))
+    threshold = BeePixmapItem.auto_threshold(img)
+    assert 175 <= threshold < 250
+
+
+def test_auto_threshold_empty_image_returns_default(qapp):
+    assert (BeePixmapItem.auto_threshold(QtGui.QImage())
+            == BeePixmapItem.LINEART_DEFAULT_THRESHOLD)
+
+
+def test_lineart_auto_threshold_uses_base(qapp, imgfilename3x3):
+    item = BeePixmapItem(QtGui.QImage(imgfilename3x3))
+    threshold = item.lineart_auto_threshold()
+    assert 0 <= threshold <= 255
+
+
 def test_apply_lineart_keeps_source_transparency(qapp):
     img = QtGui.QImage(1, 1, QtGui.QImage.Format.Format_ARGB32)
     img.setPixelColor(0, 0, QtGui.QColor(0, 0, 0, 0))  # transparent

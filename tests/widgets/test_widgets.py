@@ -152,9 +152,35 @@ def test_change_contrast_dialog_reject(view, item):
 def test_line_art_dialog_applies_default_immediately(view, item):
     stack = QtGui.QUndoStack()
     dlg = LineArtDialog(view, [item], stack)
-    # One click: the overlay is enabled with defaults as soon as it opens.
+    # One click: the overlay is enabled with an auto-picked threshold as
+    # soon as it opens.
     assert item.lineart is True
-    assert dlg.input.value() == item.LINEART_DEFAULT_THRESHOLD
+    assert dlg.input.value() == item.lineart_auto_threshold()
+
+
+def test_line_art_dialog_uses_auto_threshold_on_open(view, item):
+    with patch.object(item, 'lineart_auto_threshold', return_value=77):
+        dlg = LineArtDialog(view, [item], QtGui.QUndoStack())
+    assert dlg.input.value() == 77
+    assert item.lineart_threshold == 77
+
+
+def test_line_art_dialog_keeps_threshold_when_reediting(view, item):
+    item.set_lineart(enabled=True, threshold=42,
+                     color=QtGui.QColor(255, 0, 255))
+    with patch.object(item, 'lineart_auto_threshold', return_value=77):
+        dlg = LineArtDialog(view, [item], QtGui.QUndoStack())
+    # Re-editing an existing overlay should not auto-override the value.
+    assert dlg.input.value() == 42
+
+
+def test_line_art_dialog_auto_button(view, item):
+    dlg = LineArtDialog(view, [item], QtGui.QUndoStack())
+    with patch.object(item, 'lineart_auto_threshold', return_value=99):
+        dlg.on_auto_threshold()
+    assert dlg.input.value() == 99
+    dlg.apply_preview()
+    assert item.lineart_threshold == 99
 
 
 def test_line_art_dialog_threshold_live_update(view, item):
