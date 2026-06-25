@@ -732,12 +732,68 @@ def test_has_single_image_selection_when_multi_selection(view, item):
 
 
 @patch('PyQt6.QtWidgets.QGraphicsScene.mousePressEvent')
-def test_mouse_press_event_when_right_click(mouse_mock, view):
+def test_mouse_press_event_when_right_click_over_no_item(mouse_mock, view):
+    view.scene.topmost_user_item_at = MagicMock(return_value=None)
+    view.scene.clearSelection = MagicMock()
     event = MagicMock(
-        button=MagicMock(return_value=Qt.MouseButton.RightButton))
+        button=MagicMock(return_value=Qt.MouseButton.RightButton),
+        scenePos=MagicMock(return_value=QtCore.QPointF(10, 20)))
     view.scene.mousePressEvent(event)
     event.accept.assert_not_called()
     mouse_mock.assert_not_called()
+    view.scene.clearSelection.assert_not_called()
+
+
+@patch('PyQt6.QtWidgets.QGraphicsScene.mousePressEvent')
+def test_mouse_press_event_when_right_click_selects_unselected_item(
+        mouse_mock, view, item):
+    view.scene.addItem(item)
+    item.setSelected(False)
+    view.scene.topmost_user_item_at = MagicMock(return_value=item)
+    event = MagicMock(
+        button=MagicMock(return_value=Qt.MouseButton.RightButton),
+        scenePos=MagicMock(return_value=QtCore.QPointF(10, 20)))
+    view.scene.mousePressEvent(event)
+    mouse_mock.assert_not_called()
+    assert item.isSelected() is True
+    item.setSelected(False)
+
+
+@patch('PyQt6.QtWidgets.QGraphicsScene.mousePressEvent')
+def test_mouse_press_event_when_right_click_keeps_existing_selection(
+        mouse_mock, view, item):
+    item2 = BeePixmapItem(
+        QtGui.QImage(10, 10, QtGui.QImage.Format.Format_RGB32))
+    view.scene.addItem(item)
+    view.scene.addItem(item2)
+    item.setSelected(True)
+    item2.setSelected(True)
+    # Right-click over an item that's already part of the selection
+    view.scene.topmost_user_item_at = MagicMock(return_value=item)
+    view.scene.clearSelection = MagicMock()
+    event = MagicMock(
+        button=MagicMock(return_value=Qt.MouseButton.RightButton),
+        scenePos=MagicMock(return_value=QtCore.QPointF(10, 20)))
+    view.scene.mousePressEvent(event)
+    mouse_mock.assert_not_called()
+    view.scene.clearSelection.assert_not_called()
+    assert item.isSelected() is True
+    assert item2.isSelected() is True
+    item.setSelected(False)
+    item2.setSelected(False)
+
+
+@patch('PyQt6.QtWidgets.QGraphicsScene.mousePressEvent')
+def test_mouse_press_event_when_right_click_in_edit_mode_keeps_selection(
+        mouse_mock, view):
+    view.scene.edit_item = MagicMock()
+    view.scene.topmost_user_item_at = MagicMock()
+    event = MagicMock(
+        button=MagicMock(return_value=Qt.MouseButton.RightButton),
+        scenePos=MagicMock(return_value=QtCore.QPointF(10, 20)))
+    view.scene.mousePressEvent(event)
+    mouse_mock.assert_not_called()
+    view.scene.topmost_user_item_at.assert_not_called()
 
 
 @patch('PyQt6.QtWidgets.QGraphicsScene.mousePressEvent')

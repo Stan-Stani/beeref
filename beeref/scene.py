@@ -363,10 +363,32 @@ class BeeGraphicsScene(QtWidgets.QGraphicsScene):
             return self.selectedItems(user_only=True)[0].is_image
         return False
 
+    def topmost_user_item_at(self, pos):
+        """Return the topmost user-added item at the given scene position,
+        skipping internal UI items (multi-select outline etc.). Returns
+        ``None`` when there's no user item there."""
+
+        transform = self.views()[0].transform()
+        for item in self.items(pos,
+                               Qt.ItemSelectionMode.IntersectsItemShape,
+                               Qt.SortOrder.DescendingOrder,
+                               transform):
+            if hasattr(item, 'save_id'):
+                return item
+        return None
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.RightButton:
-            # Right-click invokes the context menu on the
-            # GraphicsView. We don't need it here.
+            # Right-click opens the context menu (handled on the
+            # GraphicsView). Select the item under the cursor so that
+            # single-item actions apply to it, but leave an existing
+            # (possibly multi-) selection untouched when right-clicking
+            # within it -- matching common application behaviour.
+            if not self.edit_item and not self.crop_item:
+                item = self.topmost_user_item_at(event.scenePos())
+                if item is not None and not item.isSelected():
+                    self.clearSelection()
+                    item.setSelected(True)
             return
 
         if event.button() == Qt.MouseButton.LeftButton:
