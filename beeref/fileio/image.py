@@ -166,6 +166,17 @@ def download_image(url):
     return (_image_from_bytes(data), image_url)
 
 
+def source_for(path):
+    """A human-readable record of where an image is being loaded from, used
+    to remember an image's origin. ``path`` is the original file path or URL
+    (as passed to ``load_image``)."""
+    if isinstance(path, str):
+        return path
+    if path.isLocalFile():
+        return path.toLocalFile()
+    return path.toString()
+
+
 def load_image(path):
     if isinstance(path, str):
         path = os.path.normpath(path)

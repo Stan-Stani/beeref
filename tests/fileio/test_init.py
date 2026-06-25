@@ -101,6 +101,31 @@ def test_load_images_uses_fallback_when_single_source_fails(view):
     assert item.pixmap().isNull() is False
 
 
+def test_load_images_records_source_from_path(view, imgfilename3x3):
+    view.scene.undo_stack = MagicMock()
+    worker = MagicMock(canceled=False)
+    fileio.load_images([imgfilename3x3],
+                       QtCore.QPointF(5, 6), view.scene, worker)
+    item = queue2list(view.scene.items_to_add)[0][0]['item']
+    assert item.source == imgfilename3x3
+
+
+@patch('beeref.fileio.load_image')
+def test_load_images_records_source_on_fallback(load_mock, view):
+    # Even when the link can't be loaded and the dragged image is used, the
+    # original url is recorded as the source.
+    load_mock.return_value = (
+        QtGui.QImage(), 'https://example.com/photos/123')
+    view.scene.undo_stack = MagicMock()
+    worker = MagicMock(canceled=False)
+    fallback = QtGui.QImage(10, 10, QtGui.QImage.Format.Format_RGB32)
+    fileio.load_images([QtCore.QUrl('https://example.com/photos/123')],
+                       QtCore.QPointF(5, 6), view.scene, worker,
+                       fallback_image=fallback)
+    item = queue2list(view.scene.items_to_add)[0][0]['item']
+    assert item.source == 'https://example.com/photos/123'
+
+
 def test_load_images_ignores_fallback_when_multiple_sources(
         view, imgfilename3x3):
     view.scene.undo_stack = MagicMock()

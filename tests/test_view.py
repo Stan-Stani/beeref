@@ -1840,6 +1840,24 @@ def test_image_from_mimedata_when_no_image(view):
     assert img.isNull() is True
 
 
+@patch('beeref.widgets.BeeNotification')
+def test_on_action_copy_source(notification_mock, view, item):
+    item.set_source('https://example.com/photos/123')
+    view.scene.addItem(item)
+    item.setSelected(True)
+    view.on_action_copy_source()
+    assert (QtWidgets.QApplication.clipboard().text()
+            == 'https://example.com/photos/123')
+
+
+@patch('beeref.widgets.BeeNotification')
+def test_on_action_copy_source_when_no_source(notification_mock, view, item):
+    view.scene.addItem(item)
+    item.setSelected(True)
+    view.on_action_copy_source()  # must not raise
+    notification_mock.assert_called_once()
+
+
 @patch('beeref.view.BeeGraphicsView.open_from_file')
 def test_drop_when_url_beefile_and_scene_empty(open_mock, view):
     root = os.path.dirname(__file__)

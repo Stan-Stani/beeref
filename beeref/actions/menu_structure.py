@@ -123,6 +123,7 @@ menu_structure = [
             MENU_SEPARATOR,
             'show_color_gamut',
             'sample_color',
+            'copy_source',
         ],
     },
     {

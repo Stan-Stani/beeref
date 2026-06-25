@@ -191,6 +191,7 @@ def test_bounding_rect_unselected_in_crop_mode(qapp, imgfilename3x3):
 
 def test_get_extra_save_data(item):
     item.filename = 'foobar.png'
+    item.set_source('https://example.com/photos/123')
     item.crop = QtCore.QRectF(10, 20, 30, 40)
     item.setOpacity(0.75)
     item.grayscale = True
@@ -199,6 +200,7 @@ def test_get_extra_save_data(item):
                      color=QtGui.QColor(0, 255, 0))
     assert item.get_extra_save_data() == {
         'filename': 'foobar.png',
+        'source': 'https://example.com/photos/123',
         'crop': [10, 20, 30, 40],
         'opacity': 0.75,
         'grayscale': True,
@@ -207,6 +209,26 @@ def test_get_extra_save_data(item):
         'lineart_threshold': 100,
         'lineart_color': [0, 255, 0],
     }
+
+
+def test_set_source_sets_tooltip(item):
+    item.set_source('https://example.com/photos/123')
+    assert item.source == 'https://example.com/photos/123'
+    assert item.toolTip() == 'https://example.com/photos/123'
+
+
+def test_create_from_data_with_source(item):
+    new_item = BeePixmapItem.create_from_data(
+        item=item, data={'filename': 'foobar.png',
+                         'source': 'https://example.com/photos/123'})
+    assert new_item.source == 'https://example.com/photos/123'
+    assert new_item.toolTip() == 'https://example.com/photos/123'
+
+
+def test_create_copy_keeps_source(item):
+    item.set_source('https://example.com/photos/123')
+    copy = item.create_copy()
+    assert copy.source == 'https://example.com/photos/123'
 
 
 def test_get_filename_for_export_when_save_id_and_filename(item):

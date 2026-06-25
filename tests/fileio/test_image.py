@@ -13,6 +13,7 @@ from beeref.fileio.image import (
     exif_rotated_image,
     image_url_from_html,
     load_image,
+    source_for,
 )
 
 
@@ -253,3 +254,17 @@ def test_image_url_from_html_falls_back_to_img():
 def test_image_url_from_html_when_nothing_found():
     html = b'<html><body><p>no image here</p></body></html>'
     assert image_url_from_html(html, 'http://x/page') is None
+
+
+def test_source_for_string_path():
+    assert source_for('/some/local/file.png') == '/some/local/file.png'
+
+
+def test_source_for_web_url():
+    url = QtCore.QUrl('https://example.com/photos/123')
+    assert source_for(url) == 'https://example.com/photos/123'
+
+
+def test_source_for_local_file_url():
+    url = QtCore.QUrl.fromLocalFile('/some/local/file.png')
+    assert source_for(url) == '/some/local/file.png'

@@ -19,7 +19,7 @@ from PyQt6 import QtCore
 
 from beeref import commands
 from beeref.fileio.errors import BeeFileIOError
-from beeref.fileio.image import load_image
+from beeref.fileio.image import load_image, source_for
 from beeref.fileio.sql import SQLiteIO, is_bee_file
 from beeref.items import BeePixmapItem
 
@@ -65,9 +65,9 @@ def load_images(filenames, pos, scene, worker, fallback_image=None):
     errors = []
     items = []
     worker.begin_processing.emit(len(filenames))
-    for i, filename in enumerate(filenames):
-        logger.info(f'Loading image from file {filename}')
-        img, filename = load_image(filename)
+    for i, source in enumerate(filenames):
+        logger.info(f'Loading image from file {source}')
+        img, filename = load_image(source)
         worker.progress.emit(i)
         if img.isNull():
             if (len(filenames) == 1
@@ -82,6 +82,9 @@ def load_images(filenames, pos, scene, worker, fallback_image=None):
                 continue
 
         item = BeePixmapItem(img, filename)
+        # Remember where the image came from, even when the link itself
+        # couldn't be loaded and the dragged image was used instead.
+        item.set_source(source_for(source))
         item.set_pos_center(pos)
         scene.add_item_later({'item': item, 'type': 'pixmap'}, selected=True)
         items.append(item)

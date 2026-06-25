@@ -325,6 +325,12 @@ actions = ActionList([
         group='active_when_items_in_scene',
     ),
     Action(
+        id='copy_source',
+        text='Copy Image &Source',
+        callback='on_action_copy_source',
+        group='active_when_single_image',
+    ),
+    Action(
         id='crop',
         text='&Crop',
         shortcuts=['Shift+C'],

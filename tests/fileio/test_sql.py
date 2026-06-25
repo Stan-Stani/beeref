@@ -254,6 +254,7 @@ def test_sqliteio_write_inserts_new_pixmap_item_png(tmpfile, view):
     assert result[5] == -1
     assert json.loads(result[6]) == {
         'filename': 'bee.jpg',
+        'source': None,
         'crop': [5, 5, 100, 80],
         'opacity': 0.66,
         'grayscale': True,
@@ -375,6 +376,7 @@ def test_sqliteio_write_updates_existing_pixmap_item(tmpfile, view):
     assert result[5] == -1
     assert json.loads(result[6]) == {
         'filename': 'new.png',
+        'source': None,
         'crop': [1, 2, 30, 40],
         'opacity': 0.75,
         'grayscale': True,
@@ -425,6 +427,7 @@ def test_sqliteio_write_keeps_pixmap_item_of_error_item(tmpfile, view):
     assert result[5] == 1
     assert json.loads(result[6]) == {
         'filename': 'bee.png',
+        'source': None,
         'crop': [5, 5, 80, 100],
         'opacity': 0.2,
         'grayscale': False,

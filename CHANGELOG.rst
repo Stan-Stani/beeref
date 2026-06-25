@@ -4,6 +4,12 @@
 Added
 -----
 
+* Images now remember where they were pulled from. When an image is added
+  from a file or dragged in from the web, its origin (file path or URL) is
+  saved with the image, shown on hover, and can be copied via
+  Images -> Copy Image Source. For web drags this is the page/link you
+  dragged, so there's a record of the source even when the image itself was
+  taken from the dropped data.
 * Dragging an image from a web browser now works for more sites. When the
   browser hands over a page link instead of the image itself, BeeRef looks
   at the page for the image it references (og:image/twitter:image, or the

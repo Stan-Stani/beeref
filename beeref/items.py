@@ -123,6 +123,10 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         super().__init__(QtGui.QPixmap.fromImage(image))
         self.save_id = None
         self.filename = filename
+        # Where the image was pulled from (a URL or file path), kept as a
+        # record of its origin. Distinct from filename, which may be the
+        # resolved download location used for export naming.
+        self.source = None
         self.reset_crop()
         logger.debug(f'Initialized {self}')
         self.is_image = True
@@ -142,6 +146,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
         item = kwargs.pop('item')
         data = kwargs.pop('data', {})
         item.filename = item.filename or data.get('filename')
+        item.set_source(item.source or data.get('source'))
         if 'crop' in data:
             item.crop = QtCore.QRectF(*data['crop'])
         item.setOpacity(data.get('opacity', 1))
@@ -158,6 +163,12 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
     def __str__(self):
         size = self.pixmap().size()
         return (f'Image "{self.filename}" {size.width()} x {size.height()}')
+
+    def set_source(self, source):
+        """Record where the image came from and show it on hover, so there's
+        a visible record of where it was pulled from."""
+        self.source = source
+        self.setToolTip(source or '')
 
     @property
     def crop(self):
@@ -453,6 +464,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
 
     def get_extra_save_data(self):
         return {'filename': self.filename,
+                'source': self.source,
                 'opacity': self.opacity(),
                 'grayscale': self.grayscale,
                 'contrast': self.contrast,
@@ -532,6 +544,7 @@ class BeePixmapItem(BeeItemMixin, QtWidgets.QGraphicsPixmapItem):
 
     def create_copy(self):
         item = BeePixmapItem(QtGui.QImage(), self.filename)
+        item.set_source(self.source)
         item.setPixmap(self.pixmap())
         item.setPos(self.pos())
         item.setZValue(self.zValue())

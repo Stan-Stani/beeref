@@ -440,6 +440,17 @@ class BeeGraphicsView(MainControlsMixin,
         self.undo_stack.push(commands.ResetTransforms(
             self.scene.selectedItems(user_only=True)))
 
+    def on_action_copy_source(self):
+        items = self.scene.selectedItems(user_only=True)
+        source = getattr(items[0], 'source', None) if items else None
+        if source:
+            QtWidgets.QApplication.clipboard().setText(source)
+            msg = f'Copied source to clipboard: {source}'
+        else:
+            msg = 'No source recorded for this image'
+        logger.debug(msg)
+        widgets.BeeNotification(self, msg)
+
     def on_action_show_color_gamut(self):
         widgets.color_gamut.GamutDialog(self, self.scene.selectedItems()[0])
 
