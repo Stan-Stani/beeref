@@ -52,8 +52,15 @@ def save_bee(filename, scene, create_new=False, worker=None):
     logger.info('End save')
 
 
-def load_images(filenames, pos, scene, worker):
-    """Add images to existing scene."""
+def load_images(filenames, pos, scene, worker, fallback_image=None):
+    """Add images to existing scene.
+
+    ``fallback_image`` is an optional QImage to use when a single source
+    can't be loaded. This covers dragging an image from a web browser,
+    which often hands over a page link that can't be downloaded (for
+    example because the site blocks it) together with the rendered image
+    itself: if the link fails, the dragged image is used instead.
+    """
 
     errors = []
     items = []
@@ -63,9 +70,16 @@ def load_images(filenames, pos, scene, worker):
         img, filename = load_image(filename)
         worker.progress.emit(i)
         if img.isNull():
-            logger.info(f'Could not load file {filename}')
-            errors.append(filename)
-            continue
+            if (len(filenames) == 1
+                    and fallback_image is not None
+                    and not fallback_image.isNull()):
+                logger.info(f'Could not load {filename}; '
+                            'using the dragged image instead')
+                img = fallback_image
+            else:
+                logger.info(f'Could not load file {filename}')
+                errors.append(filename)
+                continue
 
         item = BeePixmapItem(img, filename)
         item.set_pos_center(pos)

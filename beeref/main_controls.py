@@ -101,7 +101,15 @@ class MainControlsMixin:
                         and fileio.is_bee_file(path.toLocalFile())):
                     self.control_target.open_from_file(path.toLocalFile())
                     return
-            self.control_target.do_insert_images(mimedata.urls(), pos)
+            # When an image is dragged from a web browser, the drop usually
+            # carries both a link and the rendered image. We prefer the link
+            # (it can point at the full-resolution original) but keep the
+            # image as a fallback for when the link can't be loaded.
+            fallback = None
+            if mimedata.hasImage():
+                fallback = QtGui.QImage(mimedata.imageData())
+            self.control_target.do_insert_images(
+                mimedata.urls(), pos, fallback_image=fallback)
         elif mimedata.hasImage():
             img = QtGui.QImage(mimedata.imageData())
             item = BeePixmapItem(img)

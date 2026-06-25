@@ -1785,7 +1785,28 @@ def test_drop_when_url(insert_mock, view, imgfilename3x3):
     event.position.return_value = QtCore.QPointF(10.0, 20.0)
 
     view.dropEvent(event)
-    insert_mock.assert_called_once_with([url], QtCore.QPoint(10, 20))
+    insert_mock.assert_called_once_with(
+        [url], QtCore.QPoint(10, 20), fallback_image=None)
+
+
+@patch('beeref.view.BeeGraphicsView.do_insert_images')
+def test_drop_when_url_and_image_passes_image_as_fallback(
+        insert_mock, view, imgfilename3x3):
+    # Dragging an image from a browser hands over both a link and the
+    # rendered image; the image is passed along as a fallback.
+    url = QtCore.QUrl('https://example.com/photos/123')
+    mimedata = QtCore.QMimeData()
+    mimedata.setUrls([url])
+    mimedata.setImageData(QtGui.QImage(imgfilename3x3))
+    event = MagicMock()
+    event.mimeData.return_value = mimedata
+    event.position.return_value = QtCore.QPointF(10.0, 20.0)
+
+    view.dropEvent(event)
+    assert insert_mock.call_count == 1
+    args, kwargs = insert_mock.call_args
+    assert args[0] == [url]
+    assert kwargs['fallback_image'].isNull() is False
 
 
 @patch('beeref.view.BeeGraphicsView.open_from_file')

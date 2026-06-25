@@ -9,7 +9,11 @@ import plum
 
 from PyQt6 import QtCore, QtGui
 
-from beeref.fileio.image import exif_rotated_image, load_image
+from beeref.fileio.image import (
+    exif_rotated_image,
+    image_url_from_html,
+    load_image,
+)
 
 
 def test_exif_rotated_image_without_path(qapp):
@@ -184,3 +188,68 @@ def test_load_image_from_pinterest_when_url_errors(view, imgdata3x3):
     )
     img, filename = load_image(QtCore.QUrl(url))
     assert img.isNull() is True
+
+
+@httpretty.activate
+def test_load_image_from_page_follows_og_image(view, imgdata3x3):
+    # A typical case: an image dragged from a website hands over the page
+    # url, and the page declares the real image via og:image.
+    url = 'https://unsplash.com/photos/abc123'
+    img_url = 'https://images.unsplash.com/photo-abc123.jpg'
+    httpretty.register_uri(
+        httpretty.GET, url,
+        body=f'<html><head>'
+             f'<meta property="og:image" content="{img_url}">'
+             f'</head><body><img src="https://example.com/icon.png">'
+             f'</body></html>')
+    httpretty.register_uri(httpretty.GET, img_url, body=imgdata3x3)
+    img, filename = load_image(QtCore.QUrl(url))
+    assert img.isNull() is False
+    assert filename == img_url
+
+
+@httpretty.activate
+def test_load_image_from_page_follows_twitter_image(view, imgdata3x3):
+    url = 'https://example.com/gallery/1'
+    img_url = 'https://example.com/full.jpg'
+    httpretty.register_uri(
+        httpretty.GET, url,
+        body=f'<html><head>'
+             f'<meta name="twitter:image" content="{img_url}">'
+             f'</head><body></body></html>')
+    httpretty.register_uri(httpretty.GET, img_url, body=imgdata3x3)
+    img, filename = load_image(QtCore.QUrl(url))
+    assert img.isNull() is False
+    assert filename == img_url
+
+
+@httpretty.activate
+def test_load_image_from_page_resolves_relative_image_url(view, imgdata3x3):
+    url = 'https://example.com/gallery/1'
+    img_url = 'https://example.com/img/full.jpg'
+    httpretty.register_uri(
+        httpretty.GET, url,
+        body='<html><head>'
+             '<meta property="og:image" content="/img/full.jpg">'
+             '</head><body></body></html>')
+    httpretty.register_uri(httpretty.GET, img_url, body=imgdata3x3)
+    img, filename = load_image(QtCore.QUrl(url))
+    assert img.isNull() is False
+    assert filename == img_url
+
+
+def test_image_url_from_html_prefers_og_image_over_img():
+    html = (b'<html><head>'
+            b'<meta property="og:image" content="http://x/og.jpg">'
+            b'</head><body><img src="http://x/inline.png"></body></html>')
+    assert image_url_from_html(html, 'http://x/page') == 'http://x/og.jpg'
+
+
+def test_image_url_from_html_falls_back_to_img():
+    html = b'<html><body><img src="http://x/inline.png"></body></html>'
+    assert image_url_from_html(html, 'http://x/page') == 'http://x/inline.png'
+
+
+def test_image_url_from_html_when_nothing_found():
+    html = b'<html><body><p>no image here</p></body></html>'
+    assert image_url_from_html(html, 'http://x/page') is None

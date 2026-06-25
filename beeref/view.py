@@ -682,7 +682,7 @@ class BeeGraphicsView(MainControlsMixin,
         if new_scene:
             self.on_action_fit_scene()
 
-    def do_insert_images(self, filenames, pos=None):
+    def do_insert_images(self, filenames, pos=None, fallback_image=None):
         if not pos:
             pos = self.get_view_center()
         self.scene.deselect_all_items()
@@ -691,7 +691,8 @@ class BeeGraphicsView(MainControlsMixin,
             fileio.load_images,
             filenames,
             self.mapToScene(pos),
-            self.scene)
+            self.scene,
+            fallback_image=fallback_image)
         self.worker.progress.connect(self.on_items_loaded)
         self.worker.finished.connect(
             partial(self.on_insert_images_finished,

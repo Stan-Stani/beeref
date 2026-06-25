@@ -2,7 +2,7 @@ import os.path
 import tempfile
 from unittest.mock import MagicMock, patch
 
-from PyQt6 import QtCore
+from PyQt6 import QtCore, QtGui
 
 from beeref import fileio
 from beeref import commands
@@ -84,3 +84,33 @@ def test_load_images_error(view, imgfilename3x3):
     assert cmd.scene == view.scene
     assert cmd.ignore_first_redo is True
     assert item.pos() == QtCore.QPointF(3.5, 4.5)
+
+
+def test_load_images_uses_fallback_when_single_source_fails(view):
+    view.scene.undo_stack = MagicMock()
+    worker = MagicMock(canceled=False)
+    fallback = QtGui.QImage(10, 10, QtGui.QImage.Format.Format_RGB32)
+    fileio.load_images(['http://example.com/page'],
+                       QtCore.QPointF(5, 6), view.scene, worker,
+                       fallback_image=fallback)
+    # No error reported; the dragged image was used instead:
+    worker.finished.emit.assert_called_once_with('', [])
+    itemdata = queue2list(view.scene.items_to_add)
+    assert len(itemdata) == 1
+    item = itemdata[0][0]['item']
+    assert item.pixmap().isNull() is False
+
+
+def test_load_images_ignores_fallback_when_multiple_sources(
+        view, imgfilename3x3):
+    view.scene.undo_stack = MagicMock()
+    worker = MagicMock(canceled=False)
+    fallback = QtGui.QImage(10, 10, QtGui.QImage.Format.Format_RGB32)
+    fileio.load_images(['foo.jpg', imgfilename3x3],
+                       QtCore.QPointF(5, 6), view.scene, worker,
+                       fallback_image=fallback)
+    # The fallback only applies to a single dragged source, so the broken
+    # one is still reported as an error:
+    worker.finished.emit.assert_called_once_with('', ['foo.jpg'])
+    itemdata = queue2list(view.scene.items_to_add)
+    assert len(itemdata) == 1

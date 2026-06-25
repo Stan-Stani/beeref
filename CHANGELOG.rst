@@ -4,6 +4,12 @@
 Added
 -----
 
+* Dragging an image from a web browser now works for more sites. When the
+  browser hands over a page link instead of the image itself, BeeRef looks
+  at the page for the image it references (og:image/twitter:image, or the
+  first image on the page) and downloads that. Remote images are now also
+  fetched with a browser-like User-Agent so hosts that block unknown
+  clients (such as unsplash) work.
 * Added View -> Flip View Horizontally (shortcut M), which mirrors the
   whole view horizontally without changing the images themselves. Flipping
   the canvas is a classic trick for spotting drawing errors with fresh
