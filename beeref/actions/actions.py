@@ -365,6 +365,16 @@ actions = ActionList([
         group='active_when_selection',
     ),
     Action(
+        id='flip_view',
+        text='Flip &View Horizontally',
+        shortcuts=['M'],
+        checkable=True,
+        callback='on_action_flip_view',
+        # Mirrors the whole view rather than individual images, so it stays
+        # available as long as there's something to look at.
+        group='active_when_items_in_scene',
+    ),
+    Action(
         id='reset_scale',
         text='Reset &Scale',
         callback='on_action_reset_scale',

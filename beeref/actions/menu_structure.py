@@ -62,6 +62,7 @@ menu_structure = [
         'items': [
             'fit_scene',
             'fit_selection',
+            'flip_view',
             MENU_SEPARATOR,
             'fullscreen',
             'always_on_top',

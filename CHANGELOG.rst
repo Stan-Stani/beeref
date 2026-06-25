@@ -4,6 +4,10 @@
 Added
 -----
 
+* Added View -> Flip View Horizontally (shortcut M), which mirrors the
+  whole view horizontally without changing the images themselves. Flipping
+  the canvas is a classic trick for spotting drawing errors with fresh
+  eyes; press M again to flip back.
 * Added the ability to adjust the contrast of images
   (Images -> Change Contrast...). Useful, for example, for turning
   light pencil sketches into clearer line art.

@@ -162,6 +162,57 @@ def test_fit_rect_toggle_when_previous(center_mock, fit_mock, view):
     assert view.get_scale() == 2
 
 
+def test_on_action_flip_view_mirrors_when_requested(view, item):
+    view.scene.addItem(item)
+    assert view.transform().m11() > 0
+    view.on_action_flip_view(True)
+    assert view.transform().m11() < 0
+
+
+def test_on_action_flip_view_unmirrors_when_requested(view, item):
+    view.scene.addItem(item)
+    view.on_action_flip_view(True)
+    view.on_action_flip_view(False)
+    assert view.transform().m11() > 0
+
+
+def test_on_action_flip_view_noop_when_already_in_state(view, item):
+    view.scene.addItem(item)
+    with patch.object(view, 'scale') as scale_mock:
+        view.on_action_flip_view(False)
+        scale_mock.assert_not_called()
+
+
+def test_get_scale_is_positive_magnitude_when_mirrored(view, item):
+    view.scene.addItem(item)
+    view.scale(2, 2)
+    view.on_action_flip_view(True)
+    assert view.transform().m11() < 0
+    assert view.get_scale() == 2
+
+
+def test_set_action_checked_does_not_trigger_callback(view, item):
+    view.scene.addItem(item)
+    view.set_action_checked('flip_view', True)
+    assert actions.actions['flip_view'].qaction.isChecked() is True
+    # The callback wasn't run, so the view itself is not mirrored:
+    assert view.transform().m11() > 0
+
+
+def test_sync_flip_view_action_checks_when_mirrored(view, item):
+    view.scene.addItem(item)
+    view.scale(-1, 1)
+    view.sync_flip_view_action()
+    assert actions.actions['flip_view'].qaction.isChecked() is True
+
+
+def test_sync_flip_view_action_unchecks_when_not_mirrored(view, item):
+    view.scene.addItem(item)
+    view.set_action_checked('flip_view', True)
+    view.sync_flip_view_action()
+    assert actions.actions['flip_view'].qaction.isChecked() is False
+
+
 @patch('PyQt6.QtWidgets.QMessageBox.question')
 def test_get_confirmation_unsaved_changes_when_no_changes(
         dlg_mock, settings, view, item):

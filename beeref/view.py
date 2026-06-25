@@ -175,6 +175,7 @@ class BeeGraphicsView(MainControlsMixin,
         self.undo_stack.clear()
         self.filename = None
         self.setTransform(QtGui.QTransform())
+        self.sync_flip_view_action()
 
     def reset_previous_transform(self, toggle_item=None):
         if (self.previous_transform
@@ -187,6 +188,7 @@ class BeeGraphicsView(MainControlsMixin,
             self.setTransform(self.previous_transform['transform'])
             self.centerOn(self.previous_transform['center'])
             self.previous_transform = None
+            self.sync_flip_view_action()
             return
         if toggle_item:
             self.previous_transform = {
@@ -203,6 +205,7 @@ class BeeGraphicsView(MainControlsMixin,
         # It seems to be more reliable when we fit a second time
         # Sometimes a changing scene rect can mess up the fitting
         self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+        self.sync_flip_view_action()
         logger.trace('Fit view done')
 
     def get_confirmation_unsaved_changes(self, msg):
@@ -230,6 +233,26 @@ class BeeGraphicsView(MainControlsMixin,
 
     def on_action_fit_selection(self):
         self.fit_rect(self.scene.itemsBoundingRect(selection_only=True))
+
+    def on_action_flip_view(self, checked):
+        """Mirror the whole view horizontally without altering the images
+        themselves, for spotting drawing errors with fresh eyes.
+
+        A horizontal flip is its own inverse, so the same operation turns
+        the mirror on and off; we only act when the actual view state
+        differs from the requested one (the checkmark can drift after a
+        fit/reset). The scene point under the view centre is kept fixed so
+        the canvas appears to flip in place rather than scroll away."""
+        if (self.transform().m11() < 0) == checked:
+            return
+        center = self.mapToScene(self.get_view_center())
+        self.scale(-1, 1)
+        self.centerOn(center)
+
+    def sync_flip_view_action(self):
+        """Keep the Flip View checkmark in sync with the actual view
+        transform, which fitting or clearing the scene resets."""
+        self.set_action_checked('flip_view', self.transform().m11() < 0)
 
     def on_action_fullscreen(self, checked):
         if checked:
@@ -796,7 +819,10 @@ class BeeGraphicsView(MainControlsMixin,
             bottomright = self.mapToScene(QtCore.QPoint(
                 bottomright.x() + self.size().width(),
                 bottomright.y() + self.size().height()))
-            self.setSceneRect(QtCore.QRectF(topleft, bottomright))
+            # normalized() so a mirrored view, where topleft maps to the
+            # right of bottomright, doesn't produce a negative-width rect.
+            self.setSceneRect(
+                QtCore.QRectF(topleft, bottomright).normalized())
         except OverflowError:
             logger.info('Maximum scene size reached')
         logger.trace('Done recalculating scene rectangle')
@@ -817,8 +843,10 @@ class BeeGraphicsView(MainControlsMixin,
             self.scene.itemsBoundingRect().topLeft())
         bottomright = self.mapFromScene(
             self.scene.itemsBoundingRect().bottomRight())
-        return func(bottomright.x() - topleft.x(),
-                    bottomright.y() - topleft.y())
+        # abs() so a mirrored view (negative horizontal scale) doesn't
+        # flip the sign of the measured width and defeat the zoom limits.
+        return func(abs(bottomright.x() - topleft.x()),
+                    abs(bottomright.y() - topleft.y()))
 
     def scale(self, *args, **kwargs):
         super().scale(*args, **kwargs)
@@ -826,7 +854,10 @@ class BeeGraphicsView(MainControlsMixin,
         self.recalc_scene_rect()
 
     def get_scale(self):
-        return self.transform().m11()
+        # Magnitude only: the horizontal scale (m11) is negative while the
+        # view is mirrored via Flip View, but callers want the zoom
+        # magnitude, not the mirror direction.
+        return abs(self.transform().m11())
 
     def pan(self, delta):
         if not self.scene.items():

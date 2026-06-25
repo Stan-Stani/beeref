@@ -29,6 +29,17 @@ class ActionsMixin:
         for action in self.bee_actiongroups[group]:
             action.setEnabled(value)
 
+    def set_action_checked(self, action_id, checked):
+        """Set a checkable action's checked state without triggering its
+        callback. Used to keep a menu checkmark in sync with state that was
+        changed through another code path."""
+        qaction = actions[action_id].qaction
+        if qaction is None or qaction.isChecked() == checked:
+            return
+        qaction.blockSignals(True)
+        qaction.setChecked(checked)
+        qaction.blockSignals(False)
+
     def build_menu_and_actions(self):
         """Creates a new menu or rebuilds the given menu."""
         self.context_menu = QtWidgets.QMenu(self)
