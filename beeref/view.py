@@ -768,6 +768,7 @@ class BeeGraphicsView(MainControlsMixin,
         img = clipboard.image()
         if not img.isNull():
             item = BeePixmapItem(img)
+            item.set_source(self.source_from_mimedata(clipboard.mimeData()))
             self.undo_stack.push(commands.InsertItems(self.scene, [item], pos))
             if len(self.scene.items()) == 1:
                 # This is the first image in the scene

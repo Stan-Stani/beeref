@@ -1858,6 +1858,38 @@ def test_on_action_copy_source_when_no_source(notification_mock, view, item):
     notification_mock.assert_called_once()
 
 
+def test_source_from_mimedata_from_html(view):
+    mimedata = QtCore.QMimeData()
+    mimedata.setHtml('<img src="https://example.com/cat.png">')
+    assert (view.source_from_mimedata(mimedata)
+            == 'https://example.com/cat.png')
+
+
+def test_source_from_mimedata_from_urls(view):
+    mimedata = QtCore.QMimeData()
+    mimedata.setUrls([QtCore.QUrl('https://example.com/page')])
+    assert view.source_from_mimedata(mimedata) == 'https://example.com/page'
+
+
+def test_source_from_mimedata_when_nothing(view):
+    assert view.source_from_mimedata(QtCore.QMimeData()) is None
+
+
+@patch('beeref.view.BeeGraphicsView.on_action_fit_scene')
+@patch('PyQt6.QtGui.QClipboard.mimeData')
+@patch('PyQt6.QtGui.QClipboard.image')
+def test_on_action_paste_captures_source(
+        image_mock, mimedata_mock, fit_mock, view, imgfilename3x3):
+    image_mock.return_value = QtGui.QImage(imgfilename3x3)
+    mimedata = QtCore.QMimeData()
+    mimedata.setHtml('<img src="https://example.com/cat.png">')
+    mimedata_mock.return_value = mimedata
+    view.on_action_paste()
+    items = view.scene.items()
+    assert len(items) == 1
+    assert items[0].source == 'https://example.com/cat.png'
+
+
 @patch('beeref.view.BeeGraphicsView.open_from_file')
 def test_drop_when_url_beefile_and_scene_empty(open_mock, view):
     root = os.path.dirname(__file__)

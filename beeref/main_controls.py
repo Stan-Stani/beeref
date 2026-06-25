@@ -21,6 +21,7 @@ from PyQt6.QtCore import Qt
 from beeref import commands, widgets
 from beeref.items import BeePixmapItem
 from beeref import fileio
+from beeref.fileio.image import image_url_from_html
 
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,21 @@ class MainControlsMixin:
             image.loadFromData(data)
         return image
 
+    def source_from_mimedata(self, mimedata):
+        """Find a URL recording where a dropped or pasted image came from.
+
+        Browsers put an ``<img src>`` HTML fragment on the clipboard when
+        copying an image, and a uri-list when copying a link, so use
+        whichever is present to keep a record of the image's origin.
+        Returns None when there's nothing usable."""
+        if mimedata.hasHtml():
+            url = image_url_from_html(mimedata.html().encode(), '')
+            if url:
+                return url
+        if mimedata.hasUrls() and mimedata.urls():
+            return mimedata.urls()[0].toString()
+        return None
+
     def dropEvent(self, event):
         mimedata = event.mimeData()
         logger.debug(f'Handling file drop: {mimedata.formats()}')
@@ -131,6 +147,7 @@ class MainControlsMixin:
         elif mimedata.hasImage():
             event.acceptProposedAction()
             item = BeePixmapItem(self.image_from_mimedata(mimedata))
+            item.set_source(self.source_from_mimedata(mimedata))
             pos = self.control_target.mapToScene(pos)
             self.control_target.undo_stack.push(
                 commands.InsertItems(self.control_target.scene, [item], pos))
