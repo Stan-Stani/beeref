@@ -16,6 +16,11 @@
 MENU_SEPARATOR = 0
 
 menu_structure = [
+    # Top-level entry: appears in the right-click context menu only (the
+    # menu bar is built from the submenus below). Quick access to flicking
+    # the line art overlays on and off for comparison.
+    'toggle_line_art',
+    MENU_SEPARATOR,
     {
         'menu': '&File',
         'items': [
@@ -113,7 +118,6 @@ menu_structure = [
             'line_art',
             'toggle_line_art',
             'grayscale',
-            'toggle_visibility',
             MENU_SEPARATOR,
             'show_color_gamut',
             'sample_color',

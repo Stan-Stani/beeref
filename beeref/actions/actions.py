@@ -63,6 +63,9 @@ class Action:
         path = []
 
         def _get_path(menu_item):
+            if not isinstance(menu_item, dict):
+                # Top-level action or separator in the context menu
+                return False
             if isinstance(menu_item['items'], list):
                 # This is a normal menu
                 for item in menu_item['items']:
@@ -286,19 +289,12 @@ actions = ActionList([
     ),
     Action(
         id='toggle_line_art',
-        text='Toggle Line &Art Overlays',
-        shortcuts=['L'],
-        callback='on_action_toggle_line_art',
-        # Acts on all overlays in the scene, no selection required.
-        group='active_when_items_in_scene',
-    ),
-    Action(
-        id='toggle_visibility',
-        text='&Blink (Toggle Visibility)',
+        text='Show/Hide Line Art Overlays',
         shortcuts=['B'],
-        callback='on_action_toggle_visibility',
-        # Stays enabled while items exist so the overlay can be toggled
-        # back on after hiding deselects it.
+        callback='on_action_toggle_line_art',
+        # Acts on all overlays in the scene, no selection required, and
+        # stays enabled while items exist so they can be shown again after
+        # hiding clears the selection.
         group='active_when_items_in_scene',
     ),
     Action(

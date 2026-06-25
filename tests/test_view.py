@@ -1102,81 +1102,44 @@ def test_on_action_grayscale(view):
     assert pixmapitem2.grayscale is False
 
 
-def test_on_action_toggle_line_art_switches_all_off(view):
+def test_on_action_toggle_line_art_hides_all_overlays(view):
     on1 = BeePixmapItem(QtGui.QImage())
     on1.lineart = True
     view.scene.addItem(on1)
     on2 = BeePixmapItem(QtGui.QImage())
     on2.lineart = True
     view.scene.addItem(on2)
-    plain = BeePixmapItem(QtGui.QImage())  # no overlay configured
+    plain = BeePixmapItem(QtGui.QImage())  # reference, no overlay
     view.scene.addItem(plain)
 
     view.on_action_toggle_line_art()
-    assert on1.lineart is False
-    assert on2.lineart is False
-    assert plain.lineart is False  # untouched
-    assert set(view.lineart_toggled_off) == {on1, on2}
+    assert on1.isVisible() is False
+    assert on2.isVisible() is False
+    # The overlays stay rendered as line art; only visibility changed.
+    assert on1.lineart is True
+    # Reference images without an overlay are left visible.
+    assert plain.isVisible() is True
 
 
-def test_on_action_toggle_line_art_switches_back_on(view):
+def test_on_action_toggle_line_art_shows_overlays_again(view):
     item = BeePixmapItem(QtGui.QImage())
     item.lineart = True
     view.scene.addItem(item)
 
     view.on_action_toggle_line_art()
-    assert item.lineart is False
+    assert item.isVisible() is False
     view.on_action_toggle_line_art()
+    assert item.isVisible() is True
     assert item.lineart is True
-    assert view.lineart_toggled_off == []
 
 
-def test_on_action_toggle_line_art_does_not_enable_plain_images(view):
+def test_on_action_toggle_line_art_no_overlays(view):
     plain = BeePixmapItem(QtGui.QImage())
     view.scene.addItem(plain)
 
     view.on_action_toggle_line_art()
-    # Nothing configured: a reference image must not become line art.
-    assert plain.lineart is False
-    assert view.lineart_toggled_off == []
-
-
-def test_on_action_toggle_visibility_hides_selected(view):
-    item1 = BeePixmapItem(QtGui.QImage())
-    view.scene.addItem(item1)
-    item1.setSelected(True)
-    item2 = BeePixmapItem(QtGui.QImage())
-    view.scene.addItem(item2)
-    item2.setSelected(False)
-
-    view.on_action_toggle_visibility()
-    assert item1.isVisible() is False
-    assert item2.isVisible() is True
-    assert view.blink_hidden_items == [item1]
-
-
-def test_on_action_toggle_visibility_restores_hidden(view):
-    item = BeePixmapItem(QtGui.QImage())
-    view.scene.addItem(item)
-    item.setSelected(True)
-
-    view.on_action_toggle_visibility()
-    assert item.isVisible() is False
-    # A second toggle brings the item back and reselects it.
-    view.on_action_toggle_visibility()
-    assert item.isVisible() is True
-    assert item.isSelected() is True
-    assert view.blink_hidden_items == []
-
-
-def test_on_action_toggle_visibility_no_selection(view):
-    item = BeePixmapItem(QtGui.QImage())
-    view.scene.addItem(item)
-    item.setSelected(False)
-
-    view.on_action_toggle_visibility()
-    assert item.isVisible() is True
-    assert view.blink_hidden_items == []
+    # No overlays configured: nothing to show or hide.
+    assert plain.isVisible() is True
 
 
 def test_cancel_active_modes_when_sample_color_mode(view):

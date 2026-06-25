@@ -12,13 +12,13 @@ Added
   overlaid on a reference image for comparison. The threshold is picked
   automatically per image (Otsu's method) and, together with the line
   colour, can be adjusted.
-* Added a toggle for line art overlays (Images -> Toggle Line Art
-  Overlays, shortcut L) that switches every configured overlay in the
-  scene off and on again, without opening the dialog. Reference images
-  without an overlay are left untouched.
-* Added a blink/toggle-visibility action (Images -> Blink, shortcut B)
-  that hides the selected items and shows them again on the next press,
-  for flicking an overlay on and off against a reference.
+* Added a show/hide toggle for line art overlays (Images -> Show/Hide
+  Line Art Overlays, shortcut B, also in the top level of the right-click
+  menu) that hides every line art overlay in the scene and shows them
+  again on the next press, for flicking the overlays on and off against a
+  reference. The overlays stay rendered as line art; only their
+  visibility is toggled, and reference images without an overlay are left
+  untouched.
 * Added a setting to change the default memory limit for individual
   images. If a big image won't load, increase this limit. This
   setting can be overridden by Qt's default environment variable

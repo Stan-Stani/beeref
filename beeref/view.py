@@ -69,12 +69,6 @@ class BeeGraphicsView(MainControlsMixin,
         self.filename = None
         self.previous_transform = None
         self.active_mode = None
-        # Items hidden via the blink/toggle-visibility action, kept so they
-        # can be restored even though hiding clears their selection.
-        self.blink_hidden_items = []
-        # Overlays switched off via the line art toggle, kept so they can
-        # be switched back on.
-        self.lineart_toggled_off = []
 
         self.scene = BeeGraphicsScene(self.undo_stack)
         self.scene.changed.connect(self.on_scene_changed)
@@ -356,36 +350,19 @@ class BeeGraphicsView(MainControlsMixin,
             self.scene.selectedItems(user_only=True)))
         widgets.LineArtDialog(self, images, self.undo_stack)
 
-    def on_action_toggle_visibility(self):
-        """Blink the selected items off, or restore the previously hidden
-        ones. Useful for comparing an overlay against a reference by
-        flicking it on and off."""
-        if self.blink_hidden_items:
-            for item in self.blink_hidden_items:
-                item.setVisible(True)
-                item.setSelected(True)
-            self.blink_hidden_items = []
-        else:
-            items = self.scene.selectedItems(user_only=True)
-            for item in items:
-                item.setVisible(False)
-            self.blink_hidden_items = items
-
     def on_action_toggle_line_art(self):
-        """Switch every configured line art overlay in the scene off, or
-        switch the previously toggled-off overlays back on. Lets the whole
-        set of overlays be flicked on and off for comparison without
-        opening the dialog."""
-        images = list(self.scene.items_by_type(BeePixmapItem.TYPE))
-        currently_on = [item for item in images if item.lineart]
-        if currently_on:
-            for item in currently_on:
-                item.lineart = False
-            self.lineart_toggled_off = currently_on
-        elif self.lineart_toggled_off:
-            for item in self.lineart_toggled_off:
-                item.lineart = True
-            self.lineart_toggled_off = []
+        """Show or hide all line art overlays in the scene at once, for
+        flicking the overlays on and off against a reference. The overlays
+        stay rendered as line art; only their visibility is toggled."""
+        overlays = [item for item in self.scene.items_by_type(
+            BeePixmapItem.TYPE) if item.lineart]
+        visible = [item for item in overlays if item.isVisible()]
+        if visible:
+            for item in visible:
+                item.setVisible(False)
+        else:
+            for item in overlays:
+                item.setVisible(True)
 
     def on_action_grayscale(self, checked):
         images = list(filter(
