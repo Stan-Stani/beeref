@@ -1809,6 +1809,37 @@ def test_drop_when_url_and_image_passes_image_as_fallback(
     assert kwargs['fallback_image'].isNull() is False
 
 
+@patch('beeref.view.BeeGraphicsView.do_insert_images')
+def test_drop_when_url_and_bytearray_image(insert_mock, view, imgdata3x3):
+    # Some drag sources (e.g. web browsers) provide the image as raw
+    # encoded bytes rather than a QImage. This must not crash the drop.
+    url = QtCore.QUrl('https://example.com/photos/123')
+    mimedata = QtCore.QMimeData()
+    mimedata.setUrls([url])
+    mimedata.setImageData(QtCore.QByteArray(imgdata3x3))
+    event = MagicMock()
+    event.mimeData.return_value = mimedata
+    event.position.return_value = QtCore.QPointF(10.0, 20.0)
+
+    view.dropEvent(event)  # must not raise
+    event.acceptProposedAction.assert_called()
+    assert insert_mock.call_count == 1
+    _, kwargs = insert_mock.call_args
+    assert kwargs['fallback_image'].isNull() is False
+
+
+def test_image_from_mimedata_decodes_bytearray(view, imgdata3x3):
+    mimedata = QtCore.QMimeData()
+    mimedata.setImageData(QtCore.QByteArray(imgdata3x3))
+    img = view.image_from_mimedata(mimedata)
+    assert img.isNull() is False
+
+
+def test_image_from_mimedata_when_no_image(view):
+    img = view.image_from_mimedata(QtCore.QMimeData())
+    assert img.isNull() is True
+
+
 @patch('beeref.view.BeeGraphicsView.open_from_file')
 def test_drop_when_url_beefile_and_scene_empty(open_mock, view):
     root = os.path.dirname(__file__)

@@ -87,6 +87,24 @@ class MainControlsMixin:
     def dragMoveEvent(self, event):
         event.acceptProposedAction()
 
+    def image_from_mimedata(self, mimedata):
+        """Extract a QImage from dropped or pasted mime data.
+
+        Depending on the drag source the image arrives as a QImage, a
+        QPixmap or raw encoded bytes (QByteArray), so handle each shape and
+        never raise. Returns a null QImage when there's nothing usable."""
+        if not mimedata.hasImage():
+            return QtGui.QImage()
+        data = mimedata.imageData()
+        if isinstance(data, QtGui.QPixmap):
+            return data.toImage()
+        if isinstance(data, QtGui.QImage):
+            return data
+        image = QtGui.QImage()
+        if isinstance(data, (QtCore.QByteArray, bytes, bytearray)):
+            image.loadFromData(data)
+        return image
+
     def dropEvent(self, event):
         mimedata = event.mimeData()
         logger.debug(f'Handling file drop: {mimedata.formats()}')
@@ -94,6 +112,7 @@ class MainControlsMixin:
                             round(event.position().y()))
         if mimedata.hasUrls():
             logger.debug(f'Found dropped urls: {mimedata.urls()}')
+            event.acceptProposedAction()
             if not self.control_target.scene.items():
                 # Check if we have a bee file we can open directly
                 path = mimedata.urls()[0]
@@ -105,14 +124,13 @@ class MainControlsMixin:
             # carries both a link and the rendered image. We prefer the link
             # (it can point at the full-resolution original) but keep the
             # image as a fallback for when the link can't be loaded.
-            fallback = None
-            if mimedata.hasImage():
-                fallback = QtGui.QImage(mimedata.imageData())
+            fallback = self.image_from_mimedata(mimedata)
             self.control_target.do_insert_images(
-                mimedata.urls(), pos, fallback_image=fallback)
+                mimedata.urls(), pos,
+                fallback_image=None if fallback.isNull() else fallback)
         elif mimedata.hasImage():
-            img = QtGui.QImage(mimedata.imageData())
-            item = BeePixmapItem(img)
+            event.acceptProposedAction()
+            item = BeePixmapItem(self.image_from_mimedata(mimedata))
             pos = self.control_target.mapToScene(pos)
             self.control_target.undo_stack.push(
                 commands.InsertItems(self.control_target.scene, [item], pos))
