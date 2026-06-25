@@ -112,6 +112,7 @@ menu_structure = [
             'change_contrast',
             'line_art',
             'grayscale',
+            'toggle_visibility',
             MENU_SEPARATOR,
             'show_color_gamut',
             'sample_color',

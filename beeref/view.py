@@ -69,6 +69,9 @@ class BeeGraphicsView(MainControlsMixin,
         self.filename = None
         self.previous_transform = None
         self.active_mode = None
+        # Items hidden via the blink/toggle-visibility action, kept so they
+        # can be restored even though hiding clears their selection.
+        self.blink_hidden_items = []
 
         self.scene = BeeGraphicsScene(self.undo_stack)
         self.scene.changed.connect(self.on_scene_changed)
@@ -349,6 +352,21 @@ class BeeGraphicsView(MainControlsMixin,
             lambda item: item.is_image,
             self.scene.selectedItems(user_only=True)))
         widgets.LineArtDialog(self, images, self.undo_stack)
+
+    def on_action_toggle_visibility(self):
+        """Blink the selected items off, or restore the previously hidden
+        ones. Useful for comparing an overlay against a reference by
+        flicking it on and off."""
+        if self.blink_hidden_items:
+            for item in self.blink_hidden_items:
+                item.setVisible(True)
+                item.setSelected(True)
+            self.blink_hidden_items = []
+        else:
+            items = self.scene.selectedItems(user_only=True)
+            for item in items:
+                item.setVisible(False)
+            self.blink_hidden_items = items
 
     def on_action_grayscale(self, checked):
         images = list(filter(

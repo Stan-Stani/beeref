@@ -12,6 +12,9 @@ Added
   overlaid on a reference image for comparison. The threshold is picked
   automatically per image (Otsu's method) and, together with the line
   colour, can be adjusted.
+* Added a blink/toggle-visibility action (Images -> Blink, shortcut B)
+  that hides the selected items and shows them again on the next press,
+  for flicking an overlay on and off against a reference.
 * Added a setting to change the default memory limit for individual
   images. If a big image won't load, increase this limit. This
   setting can be overridden by Qt's default environment variable

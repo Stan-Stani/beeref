@@ -1102,6 +1102,44 @@ def test_on_action_grayscale(view):
     assert pixmapitem2.grayscale is False
 
 
+def test_on_action_toggle_visibility_hides_selected(view):
+    item1 = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(item1)
+    item1.setSelected(True)
+    item2 = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(item2)
+    item2.setSelected(False)
+
+    view.on_action_toggle_visibility()
+    assert item1.isVisible() is False
+    assert item2.isVisible() is True
+    assert view.blink_hidden_items == [item1]
+
+
+def test_on_action_toggle_visibility_restores_hidden(view):
+    item = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(item)
+    item.setSelected(True)
+
+    view.on_action_toggle_visibility()
+    assert item.isVisible() is False
+    # A second toggle brings the item back and reselects it.
+    view.on_action_toggle_visibility()
+    assert item.isVisible() is True
+    assert item.isSelected() is True
+    assert view.blink_hidden_items == []
+
+
+def test_on_action_toggle_visibility_no_selection(view):
+    item = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(item)
+    item.setSelected(False)
+
+    view.on_action_toggle_visibility()
+    assert item.isVisible() is True
+    assert view.blink_hidden_items == []
+
+
 def test_cancel_active_modes_when_sample_color_mode(view):
     view.active_mode = view.SAMPLE_COLOR_MODE
     view.sample_color_widget = widgets.SampleColorWidget(

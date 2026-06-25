@@ -285,6 +285,15 @@ actions = ActionList([
         group='active_when_selection',
     ),
     Action(
+        id='toggle_visibility',
+        text='&Blink (Toggle Visibility)',
+        shortcuts=['B'],
+        callback='on_action_toggle_visibility',
+        # Stays enabled while items exist so the overlay can be toggled
+        # back on after hiding deselects it.
+        group='active_when_items_in_scene',
+    ),
+    Action(
         id='grayscale',
         text='&Grayscale',
         shortcuts=['G'],
