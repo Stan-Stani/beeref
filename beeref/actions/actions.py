@@ -285,6 +285,14 @@ actions = ActionList([
         group='active_when_selection',
     ),
     Action(
+        id='toggle_line_art',
+        text='Toggle Line &Art Overlays',
+        shortcuts=['L'],
+        callback='on_action_toggle_line_art',
+        # Acts on all overlays in the scene, no selection required.
+        group='active_when_items_in_scene',
+    ),
+    Action(
         id='toggle_visibility',
         text='&Blink (Toggle Visibility)',
         shortcuts=['B'],

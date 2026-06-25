@@ -72,6 +72,9 @@ class BeeGraphicsView(MainControlsMixin,
         # Items hidden via the blink/toggle-visibility action, kept so they
         # can be restored even though hiding clears their selection.
         self.blink_hidden_items = []
+        # Overlays switched off via the line art toggle, kept so they can
+        # be switched back on.
+        self.lineart_toggled_off = []
 
         self.scene = BeeGraphicsScene(self.undo_stack)
         self.scene.changed.connect(self.on_scene_changed)
@@ -367,6 +370,22 @@ class BeeGraphicsView(MainControlsMixin,
             for item in items:
                 item.setVisible(False)
             self.blink_hidden_items = items
+
+    def on_action_toggle_line_art(self):
+        """Switch every configured line art overlay in the scene off, or
+        switch the previously toggled-off overlays back on. Lets the whole
+        set of overlays be flicked on and off for comparison without
+        opening the dialog."""
+        images = list(self.scene.items_by_type(BeePixmapItem.TYPE))
+        currently_on = [item for item in images if item.lineart]
+        if currently_on:
+            for item in currently_on:
+                item.lineart = False
+            self.lineart_toggled_off = currently_on
+        elif self.lineart_toggled_off:
+            for item in self.lineart_toggled_off:
+                item.lineart = True
+            self.lineart_toggled_off = []
 
     def on_action_grayscale(self, checked):
         images = list(filter(

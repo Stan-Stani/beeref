@@ -1102,6 +1102,45 @@ def test_on_action_grayscale(view):
     assert pixmapitem2.grayscale is False
 
 
+def test_on_action_toggle_line_art_switches_all_off(view):
+    on1 = BeePixmapItem(QtGui.QImage())
+    on1.lineart = True
+    view.scene.addItem(on1)
+    on2 = BeePixmapItem(QtGui.QImage())
+    on2.lineart = True
+    view.scene.addItem(on2)
+    plain = BeePixmapItem(QtGui.QImage())  # no overlay configured
+    view.scene.addItem(plain)
+
+    view.on_action_toggle_line_art()
+    assert on1.lineart is False
+    assert on2.lineart is False
+    assert plain.lineart is False  # untouched
+    assert set(view.lineart_toggled_off) == {on1, on2}
+
+
+def test_on_action_toggle_line_art_switches_back_on(view):
+    item = BeePixmapItem(QtGui.QImage())
+    item.lineart = True
+    view.scene.addItem(item)
+
+    view.on_action_toggle_line_art()
+    assert item.lineart is False
+    view.on_action_toggle_line_art()
+    assert item.lineart is True
+    assert view.lineart_toggled_off == []
+
+
+def test_on_action_toggle_line_art_does_not_enable_plain_images(view):
+    plain = BeePixmapItem(QtGui.QImage())
+    view.scene.addItem(plain)
+
+    view.on_action_toggle_line_art()
+    # Nothing configured: a reference image must not become line art.
+    assert plain.lineart is False
+    assert view.lineart_toggled_off == []
+
+
 def test_on_action_toggle_visibility_hides_selected(view):
     item1 = BeePixmapItem(QtGui.QImage())
     view.scene.addItem(item1)
