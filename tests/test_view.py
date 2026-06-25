@@ -1102,6 +1102,33 @@ def test_on_action_grayscale(view):
     assert pixmapitem2.grayscale is False
 
 
+def test_on_action_remove_line_art(view):
+    item = BeePixmapItem(QtGui.QImage())
+    item.set_lineart(enabled=True, threshold=88,
+                     color=QtGui.QColor(0, 255, 0))
+    view.scene.addItem(item)
+    item.setSelected(True)
+
+    view.on_action_remove_line_art()
+    assert item.lineart is False
+    # Threshold and colour are preserved for re-applying later.
+    assert item.lineart_threshold == 88
+    assert item.lineart_color == QtGui.QColor(0, 255, 0)
+    assert len(view.undo_stack) == 1
+    # Undoable.
+    view.undo_stack.undo()
+    assert item.lineart is True
+
+
+def test_on_action_remove_line_art_no_overlay(view):
+    item = BeePixmapItem(QtGui.QImage())  # no overlay
+    view.scene.addItem(item)
+    item.setSelected(True)
+
+    view.on_action_remove_line_art()
+    assert len(view.undo_stack) == 0
+
+
 def test_on_action_toggle_line_art_hides_all_overlays(view):
     on1 = BeePixmapItem(QtGui.QImage())
     on1.lineart = True

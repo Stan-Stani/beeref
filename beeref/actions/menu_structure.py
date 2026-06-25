@@ -116,6 +116,7 @@ menu_structure = [
             'change_opacity',
             'change_contrast',
             'line_art',
+            'remove_line_art',
             'toggle_line_art',
             'grayscale',
             MENU_SEPARATOR,

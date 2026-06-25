@@ -288,6 +288,12 @@ actions = ActionList([
         group='active_when_selection',
     ),
     Action(
+        id='remove_line_art',
+        text='Remove Line Art Overlay',
+        callback='on_action_remove_line_art',
+        group='active_when_selection',
+    ),
+    Action(
         id='toggle_line_art',
         text='Show/Hide Line Art Overlays',
         shortcuts=['B'],

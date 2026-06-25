@@ -350,6 +350,17 @@ class BeeGraphicsView(MainControlsMixin,
             self.scene.selectedItems(user_only=True)))
         widgets.LineArtDialog(self, images, self.undo_stack)
 
+    def on_action_remove_line_art(self):
+        """Turn the line art overlay off on the selected images, reverting
+        them to their normal appearance. Each image keeps its threshold and
+        colour, so the overlay can be re-applied later with the same
+        settings."""
+        images = [item for item in self.scene.selectedItems(user_only=True)
+                  if item.is_image and item.lineart]
+        if images:
+            self.undo_stack.push(commands.ChangeLineArt(
+                images, lineart=False, threshold=None, color=None))
+
     def on_action_toggle_line_art(self):
         """Show or hide all line art overlays in the scene at once, for
         flicking the overlays on and off against a reference. The overlays

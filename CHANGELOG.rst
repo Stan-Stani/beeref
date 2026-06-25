@@ -12,6 +12,10 @@ Added
   overlaid on a reference image for comparison. The threshold is picked
   automatically per image (Otsu's method) and, together with the line
   colour, can be adjusted.
+* Added Images -> Remove Line Art Overlay, which turns the line art
+  overlay off on the selected images and reverts them to their normal
+  appearance. The threshold and colour are kept so the overlay can be
+  re-applied later with the same settings.
 * Added a show/hide toggle for line art overlays (Images -> Show/Hide
   Line Art Overlays, shortcut B, also in the top level of the right-click
   menu) that hides every line art overlay in the scene and shows them
